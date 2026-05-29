@@ -1,0 +1,64 @@
+{
+  "name": "@taskbullet/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for delegating tasks from AI agents (Claude, GPT, etc.) to real human virtual assistants. Human-in-the-loop AI agent handoff via the TaskBullet API.",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "claude",
+    "anthropic",
+    "ai-agent",
+    "ai-agent-handoff",
+    "human-in-the-loop",
+    "virtual-assistant",
+    "va",
+    "taskbullet",
+    "task-delegation",
+    "agent-tools",
+    "ai-tools",
+    "llm-tools",
+    "autonomous-agent"
+  ],
+  "author": "TaskBullet <hello@taskbullet.com>",
+  "license": "MIT",
+  "homepage": "https://taskbullet.com/docs/agent-api",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GriffMurder/taskbullet-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GriffMurder/taskbullet-mcp-server/issues"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "taskbullet-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
