@@ -1,0 +1,13 @@
+version: 1
+start:
+  command: npx -y @taskbullet/mcp-server
+  env:
+    - name: TASKBULLET_API_KEY
+      description: Your TaskBullet Agent API key (begins with tb_live_). Generate at https://taskbullet.com/dashboard/settings/api-keys
+      required: true
+    - name: TASKBULLET_API_BASE
+      description: Override the API base URL (defaults to https://taskbullet.com/api/v1).
+      required: false
+    - name: TASKBULLET_SOURCE_AGENT
+      description: Audit label for which agent client is calling.
+      required: false
