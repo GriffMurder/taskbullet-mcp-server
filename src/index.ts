@@ -8,6 +8,7 @@
  * task they cannot complete autonomously.
  *
  * Tools exposed:
+ *   - get_balance     GET  /api/v1/balance
  *   - delegate_task   POST /api/v1/delegate
  *   - list_tasks      GET  /api/v1/tasks
  *   - get_task        GET  /api/v1/tasks/:taskId
@@ -108,7 +109,7 @@ const GetTaskInput = z.object({
 const server = new Server(
   {
     name: 'taskbullet-mcp-server',
-    version: '0.1.0',
+    version: '0.1.1',
   },
   {
     capabilities: { tools: {} },
@@ -118,8 +119,19 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
+      name: 'get_balance',
+      description:
+        'Return remaining VA hours on this account and whether delegate_task will be accepted. ' +
+        'Call this before proposing spend. Does not create a task.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    {
       name: 'delegate_task',
       description:
+        'Call get_balance first, then confirm with the user before sending (real hours) unless they already said to send it. ' +
         'Delegate a task to a real human virtual assistant when the AI cannot complete it autonomously. ' +
         'Use this for phone calls, 2FA-gated logins, physical-world actions, subjective QA, manual data entry, ' +
         'or anything else outside the model\'s reach. Returns a taskId for tracking.',
@@ -168,6 +180,12 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args } = req.params;
 
   try {
+    if (name === 'get_balance') {
+      const { ok, status, body } = await taskbulletFetch('/balance');
+      if (!ok) return errorResult(`Balance failed (HTTP ${status}): ${JSON.stringify(body)}`);
+      return jsonResult(body);
+    }
+
     if (name === 'delegate_task') {
       const input = DelegateInput.parse(args);
       const { ok, status, body } = await taskbulletFetch('/delegate', {

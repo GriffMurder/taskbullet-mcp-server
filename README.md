@@ -16,23 +16,32 @@ LLMs are brilliant at thinking. They are useless at:
 - Physical-world actions (mail, deliveries, in-person errands)
 - Long-tail manual data entry
 
-This server bridges that gap. When your AI agent decides a task is beyond its reach, it calls `delegate_task` and a TaskBullet virtual assistant picks it up.
+This server bridges that gap. Call `get_balance` first, confirm spend, then `delegate_task` — a TaskBullet virtual assistant picks it up.
+
+**Grok / Cursor / cloud agents:** use the hosted MCP instead of this npx package. Cloud bots cannot run npx.
+
+**https://taskbullet.com/api/agent-mcp**
+
+Header: `x-api-key: tb_live_…` (API key only — not OAuth). Same four tools as below.
 
 ## Tools exposed
 
 | Tool | Description |
 |------|-------------|
+| `get_balance` | Remaining hours and whether `delegate_task` will be accepted. Call this first. |
 | `delegate_task` | Send a new task to a human virtual assistant. Returns a `taskId`. |
 | `list_tasks` | List recently delegated tasks, optionally filtered by status. |
 | `get_task` | Poll the status and result of a specific task by `taskId`. |
 
-## Install
+There is no `cancel_task` yet.
+
+## Install (laptop stdio)
 
 You need a TaskBullet account and an API key.
 
 1. **Sign up / log in** at [taskbullet.com](https://taskbullet.com)
 2. **Generate an API key** at [taskbullet.com/dashboard/settings/api-keys](https://taskbullet.com/dashboard/settings/api-keys)
-3. **Wire up the server** in your MCP client config (see below).
+3. **Wire up the server** in your MCP client config (see below), **or** point Grok/Cursor at the hosted URL above.
 
 ## Configure in Claude Desktop
 

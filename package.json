@@ -1,7 +1,7 @@
 {
   "name": "@taskbullet/mcp-server",
-  "version": "0.1.0",
-  "description": "MCP server for delegating tasks from AI agents (Claude, GPT, etc.) to real human virtual assistants. Human-in-the-loop AI agent handoff via the TaskBullet API.",
+  "version": "0.1.1",
+  "description": "MCP server for delegating tasks from AI agents (Claude, GPT, Grok) to real human virtual assistants. Call get_balance, then delegate_task. Human-in-the-loop handoff via the TaskBullet API.",
   "keywords": [
     "mcp",
     "mcp-server",
