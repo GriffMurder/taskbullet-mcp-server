@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.GriffMurder/taskbullet",
+  "title": "TaskBullet",
+  "description": "Delegate tasks AI agents cannot finish (phone, physical world, QA, manual work).",
+  "repository": {
+    "url": "https://github.com/GriffMurder/taskbullet-mcp-server",
+    "source": "github"
+  },
+  "websiteUrl": "https://taskbullet.com",
+  "version": "0.1.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@taskbullet/mcp-server",
+      "version": "0.1.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "TASKBULLET_API_KEY",
+          "description": "TaskBullet API key (tb_live_...)",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://taskbullet.com/api/agent-mcp",
+      "headers": [
+        {
+          "name": "x-api-key",
+          "description": "TaskBullet API key (tb_live_...)",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

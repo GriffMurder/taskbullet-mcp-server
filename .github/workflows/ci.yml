@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "lts/*"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Check registry metadata
+        run: |
+          node --input-type=module <<'EOF'
+          import { readFileSync } from "node:fs";
+
+          const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+          const server = JSON.parse(readFileSync("server.json", "utf8"));
+          const site = JSON.parse(readFileSync("server.site.json", "utf8"));
+
+          if (pkg.mcpName !== "io.github.GriffMurder/taskbullet") {
+            throw new Error(`unexpected mcpName: ${pkg.mcpName}`);
+          }
+          if (pkg.mcpName !== server.name) {
+            throw new Error("package.json mcpName must match server.json name");
+          }
+          if (pkg.version !== server.version || pkg.version !== server.packages?.[0]?.version) {
+            throw new Error("package.json version, server.json version, and npm package version must match");
+          }
+          if (pkg.homepage !== "https://taskbullet.com" || server.websiteUrl !== "https://taskbullet.com") {
+            throw new Error("homepage and websiteUrl must be https://taskbullet.com");
+          }
+          if (site.name !== "io.github.GriffMurder/taskbullet-site") {
+            throw new Error(`unexpected site name: ${site.name}`);
+          }
+          if (site.websiteUrl !== "https://taskbullet.com") {
+            throw new Error("site websiteUrl must be https://taskbullet.com");
+          }
+          if (site.packages) {
+            throw new Error("server.site.json must be a remote-only registry entry");
+          }
+          if (site.remotes?.[0]?.url !== "https://taskbullet.com/api/mcp") {
+            throw new Error("site remote URL must be https://taskbullet.com/api/mcp");
+          }
+          for (const [label, description] of [
+            ["server.json", server.description],
+            ["server.site.json", site.description],
+          ]) {
+            if (typeof description !== "string" || description.length < 1 || description.length > 100) {
+              throw new Error(`${label} description must be 1-100 characters (got ${description?.length})`);
+            }
+          }
+          EOF
+
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+
+      - name: Validate registry metadata
+        run: |
+          ./mcp-publisher validate server.json
+          ./mcp-publisher validate server.site.json
