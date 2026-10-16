@@ -1,13 +1,15 @@
 {
   "name": "@taskbullet/mcp-server",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "mcpName": "io.github.GriffMurder/taskbullet",
-  "description": "MCP server for delegating tasks from AI agents (Claude, GPT, Grok) to real human virtual assistants. Call get_balance, then delegate_task. Human-in-the-loop handoff via the TaskBullet API.",
+  "description": "MCP server for delegating tasks from AI agents (Claude, Cursor, OpenClaw, Grok) to real human virtual assistants. Call get_balance, then delegate_task. Stdio and streamable HTTP.",
   "keywords": [
     "mcp",
     "mcp-server",
     "model-context-protocol",
     "claude",
+    "cursor",
+    "openclaw",
     "anthropic",
     "ai-agent",
     "ai-agent-handoff",
@@ -43,13 +45,15 @@
   ],
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "tsx --test test/*.test.ts",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
-    "zod": "^3.23.8"
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

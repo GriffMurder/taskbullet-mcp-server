@@ -1,250 +1,140 @@
 #!/usr/bin/env node
 /**
- * TaskBullet MCP Server
+ * TaskBullet MCP server.
  *
- * Exposes the TaskBullet Agent API as Model Context Protocol tools so that
- * AI agents (Claude Desktop, Claude Code, Cursor, custom MCP clients) can
- * natively delegate tasks to a real human virtual assistant when they hit a
- * task they cannot complete autonomously.
- *
- * Tools exposed:
- *   - get_balance     GET  /api/v1/balance
- *   - delegate_task   POST /api/v1/delegate
- *   - list_tasks      GET  /api/v1/tasks
- *   - get_task        GET  /api/v1/tasks/:taskId
- *
- * Setup:
  *   export TASKBULLET_API_KEY="tb_live_..."
- *   npx @taskbullet/mcp-server
+ *   npx @taskbullet/mcp-server            # stdio (default)
+ *   npx @taskbullet/mcp-server --http     # streamable HTTP on 127.0.0.1:3000/mcp
+ *
+ * The API key is read from the environment and is never written to logs or tool results.
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
+import { realpathSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { redact } from "./client.js";
+import { assertHttpBindAllowed, parsePort, startHttpServer } from "./http.js";
+import { createTaskbulletServer } from "./server.js";
+import { SERVER_VERSION } from "./version.js";
 
-const API_BASE =
-  process.env.TASKBULLET_API_BASE?.replace(/\/$/, '') ?? 'https://taskbullet.com/api/v1';
-const API_KEY = process.env.TASKBULLET_API_KEY ?? '';
+type Cli = {
+  help: boolean;
+  http: boolean;
+  host?: string;
+  port?: string;
+};
 
-if (!API_KEY) {
-  console.error(
-    '[taskbullet-mcp-server] Missing TASKBULLET_API_KEY environment variable.\n' +
-      'Generate one at https://taskbullet.com/dashboard/settings/api-keys',
-  );
-  process.exit(1);
+export function parseCli(argv: readonly string[]): Cli {
+  const cli: Cli = { help: false, http: false };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--help" || arg === "-h") {
+      cli.help = true;
+    } else if (arg === "--http") {
+      cli.http = true;
+    } else if (arg === "--host") {
+      const value = argv[++i];
+      if (!value || value.startsWith("--")) throw new Error("--host requires a value");
+      cli.host = value;
+    } else if (arg === "--port") {
+      const value = argv[++i];
+      if (!value || value.startsWith("--")) throw new Error("--port requires a value");
+      cli.port = value;
+    } else {
+      throw new Error(`Unknown argument: ${arg ?? ""}`);
+    }
+  }
+  return cli;
 }
 
-const SOURCE_AGENT = process.env.TASKBULLET_SOURCE_AGENT ?? 'mcp-client';
+function envValue(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
 
-/* ── HTTP helpers ─────────────────────────────────────────────────────── */
+function helpText(): string {
+  return `@taskbullet/mcp-server ${SERVER_VERSION}
 
-async function taskbulletFetch(
-  path: string,
-  init: RequestInit = {},
-): Promise<{ ok: boolean; status: number; body: unknown }> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'x-api-key': API_KEY,
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  });
-  const text = await res.text();
-  let body: unknown = text;
+Usage:
+  taskbullet-mcp-server                 stdio (default)
+  taskbullet-mcp-server --http          streamable HTTP at http://127.0.0.1:3000/mcp
+
+Options:
+  --http              Serve streamable HTTP instead of stdio
+  --host <addr>       Bind address (default 127.0.0.1). Non-loopback requires TASKBULLET_HTTP_TOKEN
+  --port <number>     Port (default 3000)
+  --help              Show this help
+
+Environment:
+  TASKBULLET_API_KEY                 Required tb_live_ key. Never logged.
+  TASKBULLET_API_BASE                Default https://taskbullet.com/api/v1
+  TASKBULLET_SOURCE_AGENT            Audit label. Default mcp-client
+  TASKBULLET_TRANSPORT               Set to http to select streamable HTTP
+  TASKBULLET_HTTP_HOST               Default 127.0.0.1
+  TASKBULLET_HTTP_PORT               Default 3000
+  TASKBULLET_HTTP_TOKEN              Required when the bind address is not loopback
+  TASKBULLET_HTTP_ALLOWED_ORIGINS    Extra browser Origins, comma-separated
+`;
+}
+
+export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<void> {
+  const cli = parseCli(argv);
+  const http = cli.http || envValue("TASKBULLET_TRANSPORT") === "http";
+  if (cli.help) {
+    console.log(helpText());
+    return;
+  }
+
+  const apiKey = envValue("TASKBULLET_API_KEY");
+  if (!apiKey) {
+    console.error(
+      "[taskbullet-mcp-server] Missing TASKBULLET_API_KEY environment variable.\n" +
+        "Generate one at https://taskbullet.com/dashboard/settings/api-keys",
+    );
+    process.exit(1);
+  }
+
+  const deps = {
+    apiKey,
+    apiBase: envValue("TASKBULLET_API_BASE") ?? "https://taskbullet.com/api/v1",
+    sourceAgent: envValue("TASKBULLET_SOURCE_AGENT") ?? "mcp-client",
+  };
+
+  if (!http) {
+    const server = createTaskbulletServer(deps);
+    await server.connect(new StdioServerTransport());
+    console.error("[taskbullet-mcp-server] Ready. Listening on stdio.");
+    return;
+  }
+
+  const host = cli.host ?? envValue("TASKBULLET_HTTP_HOST") ?? "127.0.0.1";
+  const port = parsePort(cli.port ?? envValue("TASKBULLET_HTTP_PORT"), 3000);
+  const token = envValue("TASKBULLET_HTTP_TOKEN");
+  assertHttpBindAllowed(host, token);
+  const allowedOrigins = envValue("TASKBULLET_HTTP_ALLOWED_ORIGINS")
+    ?.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const running = await startHttpServer({ ...deps, host, port, token, allowedOrigins });
+  console.error(`[taskbullet-mcp-server] Ready. Listening on ${running.url}`);
+}
+
+function invokedDirectly(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
   try {
-    body = text ? JSON.parse(text) : null;
+    return import.meta.url === pathToFileURL(realpathSync(entry)).href;
   } catch {
-    /* leave as text */
+    return import.meta.url === pathToFileURL(resolve(entry)).href;
   }
-  return { ok: res.ok, status: res.status, body };
 }
 
-/* ── Tool schemas (Zod → JSON Schema for MCP) ─────────────────────────── */
-
-const DelegateInput = z.object({
-  title: z
-    .string()
-    .min(1)
-    .max(500)
-    .describe('Clear, concise title or directive for the task (max 500 chars).'),
-  description: z
-    .string()
-    .optional()
-    .describe(
-      'Detailed instructions, context, attached info, or constraints the human virtual assistant needs.',
-    ),
-  priority: z
-    .enum(['low', 'normal', 'high'])
-    .optional()
-    .describe('Task priority. Defaults to "normal".'),
-  webhookUrl: z
-    .string()
-    .url()
-    .optional()
-    .describe(
-      'Optional HTTPS URL. TaskBullet will POST a signed payload here when the task completes.',
-    ),
-});
-
-const ListTasksInput = z.object({
-  status: z
-    .enum(['pending', 'in_progress', 'completed', 'failed', 'all'])
-    .optional()
-    .describe('Filter by status. Defaults to "all".'),
-});
-
-const GetTaskInput = z.object({
-  taskId: z
-    .string()
-    .describe('The taskId returned by delegate_task (e.g. "atask_a3f9c2d1e4b5a6f7").'),
-});
-
-/* ── MCP server setup ─────────────────────────────────────────────────── */
-
-const server = new Server(
-  {
-    name: 'taskbullet-mcp-server',
-    version: '0.1.1',
-  },
-  {
-    capabilities: { tools: {} },
-  },
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [
-    {
-      name: 'get_balance',
-      description:
-        'Return remaining VA hours on this account and whether delegate_task will be accepted. ' +
-        'Call this before proposing spend. Does not create a task.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'delegate_task',
-      description:
-        'Call get_balance first, then confirm with the user before sending (real hours) unless they already said to send it. ' +
-        'Delegate a task to a real human virtual assistant when the AI cannot complete it autonomously. ' +
-        'Use this for phone calls, 2FA-gated logins, physical-world actions, subjective QA, manual data entry, ' +
-        'or anything else outside the model\'s reach. Returns a taskId for tracking.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          title: { type: 'string', maxLength: 500, description: 'Concise directive (max 500 chars).' },
-          description: { type: 'string', description: 'Detailed context, instructions, and constraints.' },
-          priority: { type: 'string', enum: ['low', 'normal', 'high'], default: 'normal' },
-          webhookUrl: { type: 'string', format: 'uri', description: 'Optional HTTPS callback URL.' },
-        },
-        required: ['title'],
-      },
-    },
-    {
-      name: 'list_tasks',
-      description:
-        'List recently delegated tasks for this account, optionally filtered by status. Use to check progress on prior delegations.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          status: {
-            type: 'string',
-            enum: ['pending', 'in_progress', 'completed', 'failed', 'all'],
-            default: 'all',
-          },
-        },
-      },
-    },
-    {
-      name: 'get_task',
-      description:
-        'Get the current status, completion timestamp, and result notes for a specific delegated task.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          taskId: { type: 'string', description: 'The taskId returned by delegate_task.' },
-        },
-        required: ['taskId'],
-      },
-    },
-  ],
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (req) => {
-  const { name, arguments: args } = req.params;
-
-  try {
-    if (name === 'get_balance') {
-      const { ok, status, body } = await taskbulletFetch('/balance');
-      if (!ok) return errorResult(`Balance failed (HTTP ${status}): ${JSON.stringify(body)}`);
-      return jsonResult(body);
-    }
-
-    if (name === 'delegate_task') {
-      const input = DelegateInput.parse(args);
-      const { ok, status, body } = await taskbulletFetch('/delegate', {
-        method: 'POST',
-        body: JSON.stringify({ ...input, sourceAgent: SOURCE_AGENT }),
-      });
-      if (!ok) return errorResult(`Delegate failed (HTTP ${status}): ${JSON.stringify(body)}`);
-      return jsonResult(body);
-    }
-
-    if (name === 'list_tasks') {
-      const input = ListTasksInput.parse(args ?? {});
-      const qs = input.status && input.status !== 'all' ? `?status=${input.status}` : '';
-      const { ok, status, body } = await taskbulletFetch(`/tasks${qs}`);
-      if (!ok) return errorResult(`List failed (HTTP ${status}): ${JSON.stringify(body)}`);
-      return jsonResult(body);
-    }
-
-    if (name === 'get_task') {
-      const input = GetTaskInput.parse(args);
-      const { ok, status, body } = await taskbulletFetch(`/tasks/${encodeURIComponent(input.taskId)}`);
-      if (!ok) return errorResult(`Lookup failed (HTTP ${status}): ${JSON.stringify(body)}`);
-      return jsonResult(body);
-    }
-
-    return errorResult(`Unknown tool: ${name}`);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return errorResult(`Tool error: ${msg}`);
-  }
-});
-
-function jsonResult(body: unknown) {
-  return {
-    content: [
-      {
-        type: 'text' as const,
-        text: typeof body === 'string' ? body : JSON.stringify(body, null, 2),
-      },
-    ],
-  };
+if (invokedDirectly()) {
+  main().catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[taskbullet-mcp-server] Fatal: ${redact(message, [process.env.TASKBULLET_API_KEY ?? ""])}`);
+    process.exit(1);
+  });
 }
-
-function errorResult(message: string) {
-  return {
-    content: [{ type: 'text' as const, text: message }],
-    isError: true,
-  };
-}
-
-/* ── Boot ─────────────────────────────────────────────────────────────── */
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('[taskbullet-mcp-server] Ready. Listening on stdio.');
-}
-
-main().catch((err) => {
-  console.error('[taskbullet-mcp-server] Fatal:', err);
-  process.exit(1);
-});
