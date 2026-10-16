@@ -1,51 +1,45 @@
 # @taskbullet/mcp-server
 
-> **MCP server for AI agent → human virtual assistant handoff.** When your AI agent hits a task it can't complete (phone calls, 2FA-gated logins, physical-world actions, subjective QA), delegate it to a real human VA via the [TaskBullet Agent API](https://taskbullet.com/docs/agent-api).
+> **MCP server for AI agent → human virtual assistant handoff.** When an agent hits a task it cannot finish (phone calls, 2FA, captcha, physical-world actions, subjective QA), it files the brief with a [TaskBullet](https://taskbullet.com) virtual assistant.
 
 [![npm version](https://img.shields.io/npm/v/@taskbullet/mcp-server.svg)](https://www.npmjs.com/package/@taskbullet/mcp-server)
 [![MIT License](https://img.shields.io/npm/l/@taskbullet/mcp-server.svg)](LICENSE)
 
-## What this is
+There are two servers:
 
-A [Model Context Protocol](https://modelcontextprotocol.io) server that gives any MCP-compatible AI client (Claude Desktop, Claude Code, Cursor, Continue, etc.) native tools to delegate tasks to a real human virtual assistant.
+| Server | URL | Auth | What it can do |
+|--------|-----|------|----------------|
+| Agent (this package, and the hosted remote) | `https://taskbullet.com/api/agent-mcp` | `x-api-key: tb_live_…` | `get_balance`, `delegate_task`, `list_tasks`, `get_task` |
+| Public site guide | `https://taskbullet.com/api/mcp` | none | Read-only marketing info: services, pricing, hire vs job-seeker routing |
 
-LLMs are brilliant at thinking. They are useless at:
-- Making phone calls
-- Logging into 2FA / captcha-gated portals
-- Subjective quality review ("does this look good?")
-- Physical-world actions (mail, deliveries, in-person errands)
-- Long-tail manual data entry
+The public site server does not see customer accounts, emails, work history, or internal docs. Task delegation is only on the agent server.
 
-This server bridges that gap. Call `get_balance` first, confirm spend, then `delegate_task` — a TaskBullet virtual assistant picks it up.
+**Cloud agents (Cursor cloud, Grok, hosted Claude) should use the hosted agent URL.** They cannot run `npx`.
 
-**Grok / Cursor / cloud agents:** use the hosted MCP instead of this npx package. Cloud bots cannot run npx.
+## Tools
 
-**https://taskbullet.com/api/agent-mcp**
+| Tool | Calls | Notes |
+|------|-------|-------|
+| `get_balance` | `GET /api/v1/balance` | Read-only. Call this before proposing spend. |
+| `delegate_task` | `POST /api/v1/delegate` | Files a brief. Spends real hours after the customer starts it on Work. |
+| `list_tasks` | `GET /api/v1/tasks` | Read-only. Up to 50 tasks. Filter includes `cancelled`. |
+| `get_task` | `GET /api/v1/tasks/{taskId}` | Read-only. Stop on `completed`, `failed`, or `cancelled`. |
 
-Header: `x-api-key: tb_live_…` (API key only — not OAuth). Same four tools as below.
+`delegate_task` arguments: `title` (required), `description`, `priority` (`low` \| `normal` \| `high` \| `urgent`), `dueDate`, `webhookUrl` (https), `maxHours` (default 0.5, max 8), `idempotencyKey` (optional; a key is generated when omitted). Same tool names and the same required arguments as 0.1.x.
 
-## Tools exposed
+A `tb_live_` key files the brief. The customer starts VA hours on Work. `awaiting_customer_start` means the job has not started. Do not say the VA has started. Poll `get_task` until `completed`, `failed`, or `cancelled`, or pass `webhookUrl`. Customer cancel is `cancelled` and does not send the completion webhook.
 
-| Tool | Description |
-|------|-------------|
-| `get_balance` | Remaining hours and whether `delegate_task` will be accepted. Call this first. |
-| `delegate_task` | Send a new task to a human virtual assistant. Returns a `taskId`. |
-| `list_tasks` | List recently delegated tasks, optionally filtered by status. |
-| `get_task` | Poll the status and result of a specific task by `taskId`. |
+`maxHours` is a spend cap. Tracked time is what is billed (15-minute rounding). HTTP 402 means a live read is not above zero — buy hours at the `addHoursUrl` (the packages page, not a new trial). HTTP 422 means the cap does not fit open caps: hours remain, lower `maxHours` to `capRoom` or wait. HTTP 503 means hours were unavailable. That is not a buy-hours error.
 
-There is no `cancel_task` yet.
+Never put passwords, OTP codes, recovery keys, cookies, or API keys in a brief. The server drops those locally and the API rejects them.
 
-## Install (laptop stdio)
+## Quickstart
 
-You need a TaskBullet account and an API key.
+Create a key at [taskbullet.com/dashboard/settings/api-keys](https://taskbullet.com/dashboard/settings/api-keys). It is shown once. Put it in the client config or the process environment. Do not paste it into chat.
 
-1. **Sign up / log in** at [taskbullet.com](https://taskbullet.com)
-2. **Generate an API key** at [taskbullet.com/dashboard/settings/api-keys](https://taskbullet.com/dashboard/settings/api-keys)
-3. **Wire up the server** in your MCP client config (see below), **or** point Grok/Cursor at the hosted URL above.
+### Claude Desktop (stdio)
 
-## Configure in Claude Desktop
-
-Edit `claude_desktop_config.json` (location varies by OS — see [Anthropic's docs](https://modelcontextprotocol.io/quickstart/user)):
+`claude_desktop_config.json` ([locations](https://modelcontextprotocol.io/quickstart/user)):
 
 ```json
 {
@@ -61,61 +55,132 @@ Edit `claude_desktop_config.json` (location varies by OS — see [Anthropic's do
 }
 ```
 
-Restart Claude Desktop. You'll see the TaskBullet tools appear in the tools panel.
+Restart Claude Desktop. The four tools show up in the tools panel.
 
-## Configure in Cursor / Continue / other MCP clients
+### Cursor (hosted streamable HTTP)
 
-Any client that supports MCP servers via stdio will work. Point it at:
+`~/.cursor/mcp.json` or the project `.cursor/mcp.json`:
 
+```json
+{
+  "mcpServers": {
+    "taskbullet": {
+      "url": "https://taskbullet.com/api/agent-mcp",
+      "headers": {
+        "x-api-key": "tb_live_your_key_here"
+      }
+    }
+  }
+}
 ```
-command: npx
-args:    -y @taskbullet/mcp-server
-env:     TASKBULLET_API_KEY=tb_live_...
+
+Laptop stdio, if you would rather run the package locally:
+
+```json
+{
+  "mcpServers": {
+    "taskbullet": {
+      "command": "npx",
+      "args": ["-y", "@taskbullet/mcp-server"],
+      "env": {
+        "TASKBULLET_API_KEY": "tb_live_your_key_here"
+      }
+    }
+  }
+}
 ```
 
-## Configure in custom agent frameworks
+### OpenClaw
 
-For LangChain, CrewAI, AutoGen, or custom orchestration, you can either:
-1. Use this MCP server directly via an MCP client library, **OR**
-2. Call the underlying [TaskBullet REST API](https://taskbullet.com/docs/agent-api) (or the [OpenAPI spec](https://taskbullet.com/openapi.json)) directly.
+The lobster cannot create the account or mint a key. Tell the human, in order:
 
-## Example: Claude using delegate_task
+1. No account → https://taskbullet.com/get-started?source=openclaw (10 hours, no card)
+2. Issue `tb_live_…` at https://taskbullet.com/dashboard/settings/api-keys (shown once)
+3. Paste it into the Gateway env `TASKBULLET_API_KEY` and point Agent MCP at `https://taskbullet.com/api/agent-mcp` with header `x-api-key`. Restart. Never put the key in chat.
 
-> **You:** Find me a flight from SFO to Austin next Tuesday under $300. If you can't book it directly, have someone book it for me.
->
-> **Claude:** I found a Delta flight at 8:15 AM for $278 but it requires phone booking due to a fare class restriction. Let me delegate the booking to your TaskBullet assistant.
->
-> *[calls `delegate_task` with title: "Book Delta DL1423 SFO→AUS Tue Jun 3, 8:15 AM, $278. Use my saved AmEx ending 4321. Email confirmation to me."]*
->
-> Booked task `atask_a3f9c2d1`. Your assistant will pick this up and you'll get an email when it's confirmed.
+Install the skill with `openclaw skills install @griffmurder/taskbullet`. Then `get_balance`, confirm spend, and `delegate_task`. No key → the trial URL above. A keyed HTTP 402 is the packages page, not a second trial.
 
-## Environment variables
+A local Gateway can also launch this package over stdio (`npx -y @taskbullet/mcp-server`) with `TASKBULLET_API_KEY` in the environment.
+
+### Public site guide (no key)
+
+Read-only. Safe to add beside the agent server.
+
+```json
+{
+  "mcpServers": {
+    "taskbullet-site": {
+      "url": "https://taskbullet.com/api/mcp"
+    }
+  }
+}
+```
+
+Call `understand_site`, then `match_intent`. Job seekers are not hire conversions.
+
+### Local streamable HTTP
+
+Stdio is the default. `--http` serves [streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) on loopback:
+
+```bash
+export TASKBULLET_API_KEY="tb_live_your_key_here"
+npx -y @taskbullet/mcp-server --http
+```
+
+Endpoint: `http://127.0.0.1:3000/mcp`. The key stays in this process. Clients on that machine do not send it.
+
+```json
+{
+  "mcpServers": {
+    "taskbullet": {
+      "url": "http://127.0.0.1:3000/mcp"
+    }
+  }
+}
+```
+
+The process binds to `127.0.0.1` only. It checks `Host` and `Origin` so a browser page cannot use DNS rebinding to spend the key. Listening on any other address requires `TASKBULLET_HTTP_TOKEN`. Send that token as `Authorization: Bearer …`. It is not the TaskBullet API key.
+
+There is no server-initiated SSE stream. `GET` returns 405. Responses are JSON. Requests are limited to 60 per minute per client address, and upstream calls follow the Agent API ceiling of 60 per minute. Bodies over 32 KiB are rejected.
+
+## Environment
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
-| `TASKBULLET_API_KEY` | ✅ | — | Your `tb_live_...` API key |
-| `TASKBULLET_API_BASE` | ❌ | `https://taskbullet.com/api/v1` | Override for self-hosted or staging |
-| `TASKBULLET_SOURCE_AGENT` | ❌ | `mcp-client` | Audit label for which agent originated the request |
+| `TASKBULLET_API_KEY` | yes | — | `tb_live_…` key. Read from the environment. Never logged or copied into tool results. |
+| `TASKBULLET_API_BASE` | no | `https://taskbullet.com/api/v1` | Override for staging |
+| `TASKBULLET_SOURCE_AGENT` | no | `mcp-client` | Audit label stored on each brief |
+| `TASKBULLET_TRANSPORT` | no | stdio | Set to `http` to serve streamable HTTP |
+| `TASKBULLET_HTTP_HOST` | no | `127.0.0.1` | Bind address. Non-loopback requires a token |
+| `TASKBULLET_HTTP_PORT` | no | `3000` | HTTP port |
+| `TASKBULLET_HTTP_TOKEN` | when exposed | — | Local HTTP auth. Not the TaskBullet API key |
+| `TASKBULLET_HTTP_ALLOWED_ORIGINS` | no | loopback origins | Extra browser `Origin` values, comma-separated |
 
-## How task completion is delivered back
+## Example
 
-You have two options:
-1. **Poll** — your agent calls `get_task` periodically until `status === "completed"`.
-2. **Webhook** — pass `webhookUrl` to `delegate_task` and TaskBullet POSTs a signed payload when the VA finishes. (See the [webhook docs](https://taskbullet.com/docs/agent-api#webhooks).)
+> **You:** Find a flight from SFO to Austin next Tuesday under $300. If you cannot book it, have someone book it.
+>
+> **Claude:** I found Delta at 8:15 AM for $278, but that fare has to be booked by phone. You have hours on the account. I can file this for your assistant — it will not start until you click Start on Work.
+>
+> *[calls `delegate_task`]*
+>
+> Filed `atask_a3f9c2d1` as `awaiting_customer_start`. Open Work and click Start. I will check `get_task` after that. I will not invent a confirmation.
 
-## How TaskBullet works under the hood
+## Completion
 
-- You pre-purchase a **Bucket of Hours** (no monthly retainer).
-- Hours **roll over for 90 days** so bursty AI workloads don't waste capacity.
-- Tasks delegated through this MCP server route to your matched, dedicated virtual assistant.
-- You only spend bucket hours when the VA is actually working on a delegated task — the API itself is free.
+1. **Poll** `get_task` until `status` is `completed`, `failed`, or `cancelled`.
+2. **Webhook** — pass an https `webhookUrl`. TaskBullet POSTs a signed body when the customer closes the job. A VA checkbox does not send it. A customer cancel does not send it. See the [webhook docs](https://taskbullet.com/docs/agent-api#webhooks).
 
-Learn more at [taskbullet.com](https://taskbullet.com).
+Pass the same `idempotencyKey` when retrying a brief. The same account and key returns the original task.
+
+## How TaskBullet bills
+
+- Hours are prepaid buckets. They roll over for 90 days.
+- Delegated tasks route to the virtual assistant on the account.
+- The API call is free. Hours deduct when work is tracked, not when the brief is filed.
+
+Docs: [agent API](https://taskbullet.com/docs/agent-api) · [OpenAPI](https://taskbullet.com/openapi.json) · [site](https://taskbullet.com)
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
----
-
-**Keywords:** mcp server, model context protocol, claude, anthropic, ai agent handoff, human-in-the-loop, virtual assistant, AI delegation, autonomous agent, llm tools, agentic workflow

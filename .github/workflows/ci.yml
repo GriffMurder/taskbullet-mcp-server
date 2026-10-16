@@ -20,6 +20,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npm run build
 
@@ -55,6 +61,22 @@ jobs:
           }
           if (site.remotes?.[0]?.url !== "https://taskbullet.com/api/mcp") {
             throw new Error("site remote URL must be https://taskbullet.com/api/mcp");
+          }
+          for (const [label, doc] of [
+            ["server.json", server],
+            ["server.site.json", site],
+          ]) {
+            if (!Array.isArray(doc.icons) || doc.icons.length < 1) {
+              throw new Error(`${label} must include icons`);
+            }
+            for (const icon of doc.icons) {
+              if (typeof icon.src !== "string" || !icon.src.startsWith("https://") || icon.src.length > 255) {
+                throw new Error(`${label} icon src must be an https URL of at most 255 characters`);
+              }
+              if (icon.mimeType !== "image/png" && icon.mimeType !== "image/jpeg" && icon.mimeType !== "image/svg+xml" && icon.mimeType !== "image/webp") {
+                throw new Error(`${label} icon mimeType is not a registry-supported image type`);
+              }
+            }
           }
           for (const [label, description] of [
             ["server.json", server.description],
