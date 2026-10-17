@@ -5,6 +5,10 @@
 [![npm version](https://img.shields.io/npm/v/@taskbullet/mcp-server.svg)](https://www.npmjs.com/package/@taskbullet/mcp-server)
 [![MIT License](https://img.shields.io/npm/l/@taskbullet/mcp-server.svg)](LICENSE)
 
+## TaskBullet Hub
+
+[TaskBullet Hub](https://taskbullet.com/hub) is one MCP connection for agents, with human backup.
+
 There are two servers:
 
 | Server | URL | Auth | What it can do |
