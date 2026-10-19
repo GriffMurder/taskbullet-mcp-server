@@ -1,8 +1,8 @@
 {
   "name": "@taskbullet/mcp-server",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "mcpName": "io.github.GriffMurder/taskbullet",
-  "description": "MCP server for delegating tasks from AI agents (Claude, Cursor, OpenClaw, Grok) to real human virtual assistants. Call get_balance, then delegate_task. Stdio and streamable HTTP.",
+  "description": "MCP server for delegating tasks and US/CA phone calls from AI agents (Claude, Cursor, OpenClaw, Grok) to real human virtual assistants. Stdio and streamable HTTP.",
   "keywords": [
     "mcp",
     "mcp-server",
@@ -18,6 +18,7 @@
     "va",
     "taskbullet",
     "task-delegation",
+    "phone-calls",
     "agent-tools",
     "ai-tools",
     "llm-tools",
@@ -41,7 +42,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",
