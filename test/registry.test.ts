@@ -28,7 +28,7 @@ const site = JSON.parse(readFileSync("server.site.json", "utf8")) as {
 };
 
 test("registry metadata stays aligned with the npm package", () => {
-  assert.equal(pkg.version, "0.1.3");
+  assert.equal(pkg.version, "0.2.0");
   assert.equal(SERVER_VERSION, pkg.version);
   assert.equal(pkg.mcpName, "io.github.GriffMurder/taskbullet");
   assert.equal(pkg.mcpName, server.name);

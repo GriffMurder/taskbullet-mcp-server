@@ -53,6 +53,19 @@ test("formatApiError tells the model what to do next", () => {
 
   assert.match(formatApiError(503, { hoursUnavailable: true }, null), /not a buy-hours error/);
   assert.match(formatApiError(401, { error: KEY }, null), /api-keys/);
+
+  const callsWallet = formatApiError(402, { error: "payment_required", addFundsUrl: "https://taskbullet.com/api/v1/billing/add-funds" }, null);
+  assert.match(callsWallet, /5 minutes/);
+  assert.match(callsWallet, /no trial/);
+  assert.match(callsWallet, /add-funds/);
+
+  const country = formatApiError(422, { error: "country_not_enabled", country: "GB", tier: 4 }, null);
+  assert.match(country, /Only US and Canada/);
+  assert.match(country, /country=GB/);
+  assert.match(country, /tier=4/);
+
+  assert.match(formatApiError(409, { error: "dial_started" }, null), /dial_started/);
+  assert.match(formatApiError(404, { error: "transcript_not_ready" }, null), /transcript_not_ready/);
 });
 
 test("sliding window blocks the call that would exceed the limit", () => {

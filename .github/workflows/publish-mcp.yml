@@ -10,7 +10,7 @@
 # use the repository_owner claim with its exact GitHub casing.
 #
 # Trigger after package.json and server.json versions match the tag:
-#   git tag v0.1.3 && git push origin v0.1.3
+#   git tag v0.2.0 && git push origin v0.2.0
 #
 # server.site.json is published in the same job. Bump its version when that
 # file changes. A duplicate site version is ignored so an npm-only tag still

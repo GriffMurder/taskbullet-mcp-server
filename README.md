@@ -13,7 +13,7 @@ There are two servers:
 
 | Server | URL | Auth | What it can do |
 |--------|-----|------|----------------|
-| Agent (this package, and the hosted remote) | `https://taskbullet.com/api/agent-mcp` | `x-api-key: tb_live_…` | `get_balance`, `delegate_task`, `list_tasks`, `get_task` |
+| Agent (this package, and the hosted remote) | `https://taskbullet.com/api/agent-mcp` | `x-api-key: tb_live_…` | `get_balance`, `delegate_task`, `list_tasks`, `get_task`, `confirm_task`, `cancel_task`, `reopen_task`, `place_call`, `validate_call`, `get_call`, `update_call`, `cancel_call`, `get_transcript` |
 | Public site guide | `https://taskbullet.com/api/mcp` | none | Read-only marketing info: services, pricing, hire vs job-seeker routing |
 
 The public site server does not see customer accounts, emails, work history, or internal docs. Task delegation is only on the agent server.
@@ -24,18 +24,29 @@ The public site server does not see customer accounts, emails, work history, or 
 
 | Tool | Calls | Notes |
 |------|-------|-------|
-| `get_balance` | `GET /api/v1/balance` | Read-only. Call this before proposing spend. |
-| `delegate_task` | `POST /api/v1/delegate` | Files a brief. Spends real hours after the customer starts it on Work. |
+| `get_balance` | `GET /api/v1/balance` | Read-only. Hours and the calls wallet. Call this before proposing spend. |
+| `delegate_task` | `POST /api/v1/delegate` | Files a brief. `Idempotency-Key` required. Spends real hours after the customer starts it on Work. |
 | `list_tasks` | `GET /api/v1/tasks` | Read-only. Up to 50 tasks. Filter includes `cancelled`. |
-| `get_task` | `GET /api/v1/tasks/{taskId}` | Read-only. Stop on `completed`, `failed`, or `cancelled`. |
+| `get_task` | `GET /api/v1/tasks/{taskId}` | Read-only. Stop on `completed`, `failed`, or `cancelled`. `awaitingCustomerConfirm` means ask the human. |
+| `confirm_task` | `POST /api/v1/tasks/{taskId}/confirm` | Accepts a delivery and settles tracked hours. `Idempotency-Key` required. Ask the human first. |
+| `cancel_task` | `POST /api/v1/tasks/{taskId}/cancel` | Releases the hold and bills only tracked time. `Idempotency-Key` required. Ask the human first. |
+| `reopen_task` | `POST /api/v1/tasks/{taskId}/reopen` | Sends the delivery back. `reason` required. `Idempotency-Key` required. Ask the human first. |
+| `place_call` | `POST /api/v1/calls` | One human call. US and Canada only. Default hold is 5 minutes. `Idempotency-Key` required. |
+| `validate_call` | `POST /api/v1/calls/validate` | Checks the body. Creates nothing and places no hold. |
+| `get_call` | `GET /api/v1/calls/{id}` | Read-only. Includes `needs_info` or the final result. |
+| `update_call` | `PATCH /api/v1/calls/{id}` | Fills missing fields while the call is `needs_info`. |
+| `cancel_call` | `POST /api/v1/calls/{id}/cancel` | Before the first dial, releases the hold. After dialing, the attempt finishes. |
+| `get_transcript` | `GET /api/v1/calls/{id}/transcript.txt` | Read-only. Empty is `transcript_not_ready`. A cancelled call is `call_cancelled`. |
 
-`delegate_task` arguments: `title` (required), `description`, `priority` (`low` \| `normal` \| `high` \| `urgent`), `dueDate`, `webhookUrl` (https), `maxHours` (default 0.5, max 8), `idempotencyKey` (optional; a key is generated when omitted). Same tool names and the same required arguments as 0.1.x.
+`delegate_task` arguments: `title` (required, max 5000), `description` (max 8000), `priority` (`low` \| `normal` \| `high` \| `urgent`, default `normal`), `dueDate`, `sourceAgent`, `webhookUrl` (https), `maxHours` (default 0.5, max 8), `idempotencyKey` (required). The same value is sent as the `Idempotency-Key` header. A repeat returns the original task.
 
-A `tb_live_` key files the brief. The customer starts VA hours on Work. `awaiting_customer_start` means the job has not started. Do not say the VA has started. Poll `get_task` until `completed`, `failed`, or `cancelled`, or pass `webhookUrl`. Customer cancel is `cancelled` and does not send the completion webhook.
+A `tb_live_` key files the brief. The customer starts VA hours on Work. `awaiting_customer_start` means the job has not started. Do not say the VA has started. Poll `get_task` until `completed`, `failed`, or `cancelled`, or pass `webhookUrl`. When `get_task` shows `awaitingCustomerConfirm`, ask the human, then `confirm_task`, `cancel_task`, or `reopen_task`. Do not confirm, cancel, or reopen without the human. Customer cancel is `cancelled` and does not send the completion webhook. If nobody confirms, an agent-created task confirms itself after 3 days.
 
 `maxHours` is a spend cap. Tracked time is what is billed (15-minute rounding). HTTP 402 means a live read is not above zero — buy hours at the `addHoursUrl` (the packages page, not a new trial). HTTP 422 means the cap does not fit open caps: hours remain, lower `maxHours` to `capRoom` or wait. HTTP 503 means hours were unavailable. That is not a buy-hours error.
 
-Never put passwords, OTP codes, recovery keys, cookies, or API keys in a brief. The server drops those locally and the API rejects them.
+Never put passwords, OTP codes, recovery keys, cookies, or API keys in a brief or a call. The server drops those locally and the API rejects them.
+
+Human phone calls use `place_call`, not `delegate_task`. Only US and Canada numbers can be placed. `record_call` must be false or omitted. Recording is not available. The hold is the full call. `max_minutes` defaults to 5, so a tier 1 call holds $5. Raise `max_minutes` on that call to hold more, up to 60. `validate_call` checks the same body and places no hold. `place_call` is pay-as-you-go from the calls wallet, with no trial. Poll `get_call`, or pass `callback_url`. A call outside weekday 09:00–17:00 in the recipient's time zone needs `allow_outside_business_hours: true` after the customer confirms. `get_balance` returns `balance_cents` (spendable after open holds), `holds_cents`, and `wallet_cents`. HTTP 402 `payment_required` means the wallet cannot cover the hold. Add funds at `addFundsUrl`. That read does not create a Stripe session.
 
 ## Quickstart
 
@@ -59,7 +70,7 @@ Create a key at [taskbullet.com/dashboard/settings/api-keys](https://taskbullet.
 }
 ```
 
-Restart Claude Desktop. The four tools show up in the tools panel.
+Restart Claude Desktop. The tools show up in the tools panel.
 
 ### Cursor (hosted streamable HTTP)
 
@@ -170,12 +181,19 @@ There is no server-initiated SSE stream. `GET` returns 405. Responses are JSON. 
 >
 > Filed `atask_a3f9c2d1` as `awaiting_customer_start`. Open Work and click Start. I will check `get_task` after that. I will not invent a confirmation.
 
+> **You:** Call the Austin hotel and ask if they have a room next Tuesday. The number is a US hotel line.
+>
+> **Claude:** I will check the calls wallet, then `validate_call`. Only US and Canada numbers can be placed. The default hold is 5 minutes, $5 on a tier 1 call. Recording is not available. I will send `place_call` after you confirm.
+>
+> *[calls `validate_call`, then `place_call` with `idempotencyKey` and no `record_call`]*
+
 ## Completion
 
-1. **Poll** `get_task` until `status` is `completed`, `failed`, or `cancelled`.
-2. **Webhook** — pass an https `webhookUrl`. TaskBullet POSTs a signed body when the customer closes the job. A VA checkbox does not send it. A customer cancel does not send it. See the [webhook docs](https://taskbullet.com/docs/agent-api#webhooks).
+1. **Poll** `get_task` until `status` is `completed`, `failed`, or `cancelled`. When `awaitingCustomerConfirm` is true, ask the human, then `confirm_task`, `cancel_task`, or `reopen_task`.
+2. **Webhook** — pass an https `webhookUrl`. TaskBullet POSTs a signed body when the customer closes the job, and `task.awaiting_confirmation` when a delivery is waiting. A customer cancel does not send `task.completed`. See the [webhook docs](https://taskbullet.com/docs/agent-api#webhooks).
+3. **Calls** — poll `get_call` until the call finishes, or pass an https `callback_url`. Read `get_transcript` when the call has a transcript.
 
-Pass the same `idempotencyKey` when retrying a brief. The same account and key returns the original task.
+`delegate_task`, `confirm_task`, `cancel_task`, `reopen_task`, and `place_call` require `idempotencyKey`. The package sends that value as the `Idempotency-Key` header and does not put it in the JSON body. The same account and key returns the original result.
 
 ## How TaskBullet bills
 

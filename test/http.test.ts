@@ -3,6 +3,7 @@ import http from "node:http";
 import test from "node:test";
 import { MAX_BODY_BYTES } from "../src/client.js";
 import { assertHttpBindAllowed, startHttpServer } from "../src/http.js";
+import { SERVER_VERSION } from "../src/version.js";
 
 const KEY = "tb_live_test_fixture_value";
 
@@ -88,7 +89,7 @@ test("streamable HTTP exposes tools and shares the API rate limit", async () => 
     assert.equal(init.body.includes(KEY), false);
     const initialized = JSON.parse(init.body) as { result: { instructions: string; serverInfo: { version: string } } };
     assert.match(initialized.result.instructions, /get_balance/);
-    assert.equal(initialized.result.serverInfo.version, "0.1.3");
+    assert.equal(initialized.result.serverInfo.version, SERVER_VERSION);
 
     const tools = await rawRequest({
       port: running.port,
