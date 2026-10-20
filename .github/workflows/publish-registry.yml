@@ -1,8 +1,7 @@
 # Publishes server.json to the official MCP Registry. Does not publish to npm
 # and does not publish server.site.json.
 #
-# Use this when the npm version in server.json is already public. The v0.2.0
-# tag workflow stops at npm publish, so this job is how that listing is updated.
+# Use this when the npm version in server.json is already public.
 #
 # Registry auth is GitHub Actions OIDC (id-token: write). No MCP token secret.
 # The registry namespace must stay io.github.GriffMurder/* because OIDC permissions
@@ -12,9 +11,6 @@ name: Publish server.json to MCP Registry
 
 on:
   workflow_dispatch:
-  # One-shot run for 0.2.0. Removed after that publish; workflow_dispatch stays.
-  push:
-    tags: ["registry-publish-*"]
 
 concurrency:
   group: mcp-registry-server-json
