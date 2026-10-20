@@ -1,6 +1,6 @@
 # @taskbullet/mcp-server
 
-> **MCP server for AI agent → human virtual assistant handoff.** When an agent hits a task it cannot finish (phone calls, 2FA, captcha, physical-world actions, subjective QA), it files the brief with a [TaskBullet](https://taskbullet.com) virtual assistant.
+> **Human Phone Calls.** An AI agent places a real phone call made by a real person. Structured answers and wrap-up notes come back. US and Canada. When an agent hits a task it cannot finish (2FA, captcha, physical-world actions, subjective QA), it files the brief with a [TaskBullet](https://taskbullet.com) virtual assistant.
 
 [![npm version](https://img.shields.io/npm/v/@taskbullet/mcp-server.svg)](https://www.npmjs.com/package/@taskbullet/mcp-server)
 [![MIT License](https://img.shields.io/npm/l/@taskbullet/mcp-server.svg)](LICENSE)
