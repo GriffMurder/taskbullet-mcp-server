@@ -12,6 +12,9 @@
 # Trigger after package.json and server.json versions match the tag:
 #   git tag v0.2.0 && git push origin v0.2.0
 #
+# This job publishes to npm first. To list server.json when that npm version
+# is already public, run "Publish server.json to MCP Registry" instead.
+#
 # server.site.json is published in the same job. Bump its version when that
 # file changes. A duplicate site version is ignored so an npm-only tag still
 # succeeds.

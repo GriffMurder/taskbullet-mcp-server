@@ -1,0 +1,94 @@
+# Publishes server.json to the official MCP Registry. Does not publish to npm
+# and does not publish server.site.json.
+#
+# Use this when the npm version in server.json is already public. The v0.2.0
+# tag workflow stops at npm publish, so this job is how that listing is updated.
+#
+# Registry auth is GitHub Actions OIDC (id-token: write). No MCP token secret.
+# The registry namespace must stay io.github.GriffMurder/* because OIDC permissions
+# use the repository_owner claim with its exact GitHub casing.
+
+name: Publish server.json to MCP Registry
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: mcp-registry-server-json
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "lts/*"
+
+      - name: Require a public npm package that matches server.json
+        run: |
+          PKG="$(node -p "require('./package.json').version")"
+          SRV="$(node -p "require('./server.json').version")"
+          PKG_VER="$(node -p "require('./server.json').packages[0].version")"
+          NAME="$(node -p "require('./package.json').mcpName")"
+          SRV_NAME="$(node -p "require('./server.json').name")"
+          if [ "$PKG" != "$SRV" ] || [ "$PKG" != "$PKG_VER" ]; then
+            echo "package.json ($PKG) and server.json ($SRV / $PKG_VER) versions must match."
+            exit 1
+          fi
+          if [ "$NAME" != "$SRV_NAME" ]; then
+            echo "package.json mcpName ($NAME) must match server.json name ($SRV_NAME)."
+            exit 1
+          fi
+          PUBLISHED="$(npm view "@taskbullet/mcp-server@${PKG}" version)"
+          NPM_NAME="$(npm view "@taskbullet/mcp-server@${PKG}" mcpName)"
+          if [ "$PUBLISHED" != "$PKG" ]; then
+            echo "npm does not list @taskbullet/mcp-server@${PKG}. This workflow does not publish to npm."
+            exit 1
+          fi
+          if [ "$NPM_NAME" != "$SRV_NAME" ]; then
+            echo "Published npm mcpName ($NPM_NAME) must match server.json name ($SRV_NAME)."
+            exit 1
+          fi
+          echo "Publishing ${SRV_NAME}@${SRV} from the public npm package. npm publish is skipped."
+
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+
+      - name: Validate server.json
+        run: ./mcp-publisher validate server.json
+
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish server.json to MCP Registry
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            set +e
+            out="$(./mcp-publisher publish server.json 2>&1)"
+            code=$?
+            set -e
+            printf '%s\n' "$out"
+            if [ "$code" -eq 0 ]; then
+              exit 0
+            fi
+            if printf '%s\n' "$out" | grep -q "cannot publish duplicate version"; then
+              echo "server.json version is already listed."
+              exit 0
+            fi
+            if [ "$attempt" -eq 6 ]; then
+              exit 1
+            fi
+            echo "Registry publish attempt ${attempt} failed; retrying in 20s."
+            sleep 20
+          done
