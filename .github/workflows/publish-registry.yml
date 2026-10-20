@@ -12,6 +12,9 @@ name: Publish server.json to MCP Registry
 
 on:
   workflow_dispatch:
+  # One-shot run for 0.2.0. Removed after that publish; workflow_dispatch stays.
+  push:
+    tags: ["registry-publish-*"]
 
 concurrency:
   group: mcp-registry-server-json
