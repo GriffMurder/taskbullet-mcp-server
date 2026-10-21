@@ -221,7 +221,7 @@ There is no server-initiated SSE stream. `GET` returns 405. Responses are JSON. 
 
 Cursor: `plugins/taskbullet` bundles this MCP server, `rules/delegate-call-or-task.mdc`, and `skills/place-call-or-delegate/SKILL.md`. Those tell the agent when to use `place_call` and when to use `delegate_task`. The repo marketplace is `.cursor-plugin/marketplace.json`. Submission to the Cursor Marketplace is still manual at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish).
 
-Claude Code: `.claude-plugin/marketplace.json` lists the same plugin. Users add it with `/plugin marketplace add GriffMurder/taskbullet-mcp-server`. Claude Code loads the skill. It does not load the Cursor rule. The launcher in `plugins/taskbullet/.mcp.json` is pinned to `@taskbullet/mcp-server@0.2.1`.
+Claude Code: `.claude-plugin/marketplace.json` lists the same plugin. Users add it with `/plugin marketplace add GriffMurder/taskbullet-mcp-server`. Claude Code loads the skill. It does not load the Cursor rule. Claude runs the vendored server with `node ${CLAUDE_PLUGIN_ROOT}/server/index.js` and asks for `TASKBULLET_API_KEY` in the plugin prompt. Cursor keeps using `npx`.
 
 ## Environment
 
