@@ -5,7 +5,13 @@ import { join } from "node:path";
 import test from "node:test";
 
 const PLUGIN = "plugins/taskbullet";
-const SERVER_FILES = ["client.js", "http.js", "index.js", "server.js", "version.js"];
+const VENDORED_BUILD: Record<string, string> = {
+  "client.js": "client.js",
+  "http.js": "http.js",
+  "index.js": "run.js",
+  "server.js": "server.js",
+  "version.js": "version.js",
+};
 
 function stripSourceMap(source: string): string {
   const body = source
@@ -41,13 +47,22 @@ test("claude plugin vendors the server and asks for its secrets", () => {
   assert.equal(manifest.userConfig.TASKBULLET_HTTP_TOKEN?.required, undefined);
 
   const mcp = JSON.parse(readFileSync(`${PLUGIN}/.mcp.json`, "utf8")) as {
-    mcpServers: { taskbullet: { command: string; args: string[]; env: Record<string, string> } };
+    mcpServers: { taskbullet: { command: string; args?: string[]; env: Record<string, string> } };
   };
   const server = mcp.mcpServers.taskbullet;
-  assert.equal(server.command, "node");
-  assert.deepEqual(server.args, ["${CLAUDE_PLUGIN_ROOT}/server/index.js"]);
-  assert.equal(server.env.TASKBULLET_API_KEY, "${user_config.TASKBULLET_API_KEY}");
-  assert.equal(server.env.TASKBULLET_HTTP_TOKEN, "${user_config.TASKBULLET_HTTP_TOKEN}");
+  assert.equal(server.command, "${CLAUDE_PLUGIN_ROOT}/bin/start.sh");
+  assert.equal(server.args, undefined);
+  assert.equal(server.env.CLAUDE_PLUGIN_OPTION_TASKBULLET_API_KEY, "${user_config.TASKBULLET_API_KEY}");
+  assert.equal(server.env.CLAUDE_PLUGIN_OPTION_TASKBULLET_HTTP_TOKEN, "${user_config.TASKBULLET_HTTP_TOKEN}");
+  assert.equal(server.env.TASKBULLET_API_KEY, undefined);
+  assert.equal(server.env.TASKBULLET_HTTP_TOKEN, undefined);
+
+  const launcher = readFileSync(`${PLUGIN}/bin/start.sh`, "utf8");
+  assert.equal(launcher, '#!/bin/sh\nexec node "${CLAUDE_PLUGIN_ROOT}/server/index.js" "$@"\n');
+  assert.equal(launcher.includes("npx"), false);
+  assert.equal(launcher.includes("uvx"), false);
+  assert.equal(launcher.includes("npm"), false);
+  assert.ok(statSync(`${PLUGIN}/bin/start.sh`).mode & 0o111);
 
   const cursor = JSON.parse(readFileSync(`${PLUGIN}/mcp.json`, "utf8")) as {
     mcpServers: { taskbullet: { command: string; args: string[]; env: Record<string, string> } };
@@ -101,10 +116,23 @@ test("claude plugin vendors the server and asks for its secrets", () => {
 
 test("vendored plugin server matches the TypeScript build", () => {
   execFileSync("npx", ["tsc"], { stdio: "inherit" });
-  for (const name of SERVER_FILES) {
-    const built = stripSourceMap(readFileSync(`dist/${name}`, "utf8"));
-    const vendored = readFileSync(`${PLUGIN}/server/${name}`, "utf8");
-    assert.equal(vendored, built, name);
-    assert.ok(vendored.split("\n").length > 5, name);
+  for (const [vendoredName, builtName] of Object.entries(VENDORED_BUILD)) {
+    const built = stripSourceMap(readFileSync(`dist/${builtName}`, "utf8"));
+    const vendored = readFileSync(`${PLUGIN}/server/${vendoredName}`, "utf8");
+    assert.equal(vendored, built, vendoredName);
+    assert.ok(vendored.split("\n").length > 5, vendoredName);
   }
+  const pluginServer = readdirSync(`${PLUGIN}/server`)
+    .filter((name) => name.endsWith(".js"))
+    .map((name) => readFileSync(`${PLUGIN}/server/${name}`, "utf8"))
+    .join("\n");
+  assert.equal(pluginServer.includes("process.env.TASKBULLET_API_KEY"), false);
+  assert.equal(pluginServer.includes("process.env.TASKBULLET_HTTP_TOKEN"), false);
+  assert.equal(pluginServer.includes("process.env["), false);
+  assert.equal(pluginServer.includes("homedir"), false);
+  assert.equal(pluginServer.includes("keychain"), false);
+  assert.equal(pluginServer.includes("~/"), false);
+  assert.match(pluginServer, /process\.env\.CLAUDE_PLUGIN_OPTION_TASKBULLET_API_KEY/);
+  assert.match(pluginServer, /process\.env\.CLAUDE_PLUGIN_OPTION_TASKBULLET_HTTP_TOKEN/);
+  assert.equal(readFileSync("dist/index.js", "utf8").includes("process.env.TASKBULLET_API_KEY"), true);
 });

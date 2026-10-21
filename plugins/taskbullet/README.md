@@ -6,7 +6,7 @@ The same plugin files a task with a TaskBullet virtual assistant when the agent 
 
 Create a key at https://taskbullet.com/dashboard/settings/api-keys. It is shown once. Put it in the plugin prompt. Do not paste it into chat.
 
-Cursor reads `mcp.json`, `rules/delegate-call-or-task.mdc`, and `skills/place-call-or-delegate/SKILL.md`. It launches the published npm package with `npx`. Claude Code reads `.mcp.json` and the same skill, and does not load the Cursor rule. Claude runs `node` on the readable server in `server/`, and asks for the API key in the plugin prompt. That value is passed in as `TASKBULLET_API_KEY`. The plugin does not read a key already stored on the machine. Leave the local HTTP token blank unless you bind the server off loopback. Phone calls use `place_call`. Other unfinished work uses `delegate_task`.
+Cursor reads `mcp.json`, `rules/delegate-call-or-task.mdc`, and `skills/place-call-or-delegate/SKILL.md`. It launches the published npm package with `npx`. Claude Code reads `.mcp.json` and the same skill, and does not load the Cursor rule. Claude starts `bin/start.sh`, which runs the readable server in `server/`. The plugin prompt asks for the API key and the local HTTP token, and those are the only credential values the server reads. Leave the local HTTP token blank unless you bind the server off loopback. Phone calls use `place_call`. Other unfinished work uses `delegate_task`.
 
 Privacy: https://taskbullet.com/legal/privacy
 Docs: https://taskbullet.com/docs/agent-api
