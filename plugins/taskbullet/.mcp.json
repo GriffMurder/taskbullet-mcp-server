@@ -1,10 +1,11 @@
 {
   "mcpServers": {
     "taskbullet": {
-      "command": "npx",
-      "args": ["-y", "@taskbullet/mcp-server@0.2.1"],
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.js"],
       "env": {
-        "TASKBULLET_API_KEY": "${user_config.taskbullet_api_key}"
+        "TASKBULLET_API_KEY": "${user_config.TASKBULLET_API_KEY}",
+        "TASKBULLET_HTTP_TOKEN": "${user_config.TASKBULLET_HTTP_TOKEN}"
       }
     }
   }

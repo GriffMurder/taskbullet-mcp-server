@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- The Claude Code plugin runs a vendored copy of the server with `node` and asks for `TASKBULLET_API_KEY` in the plugin prompt. Cursor still launches the npm package with `npx`.
+- The server reads `package.json` from beside the file, then from the parent directory.
+
 ## 0.2.1
 
 - Keep registry name `io.github.GriffMurder/taskbullet` so 0.2.1 updates the live listing. `com.taskbullet/mcp` still needs a DNS TXT or HTTP proof on `taskbullet.com`. Publish steps are in `PUBLISHING.md`.

@@ -12,16 +12,19 @@
   "repository": "https://github.com/GriffMurder/taskbullet-mcp-server",
   "license": "MIT",
   "keywords": ["phone", "calls", "taskbullet", "human-in-the-loop"],
-  "documentationUrl": "https://taskbullet.com/docs/agent-api",
-  "supportUrl": "https://github.com/GriffMurder/taskbullet-mcp-server/issues",
-  "privacyPolicyUrl": "https://taskbullet.com/legal/privacy",
-  "termsOfServiceUrl": "https://taskbullet.com/legal/terms",
+  "icon": "./.claude-plugin/icon.png",
   "userConfig": {
-    "taskbullet_api_key": {
+    "TASKBULLET_API_KEY": {
       "type": "string",
       "title": "TaskBullet API key",
-      "description": "tb_live_ key from https://taskbullet.com/dashboard/settings/api-keys. Shown once. Never paste it into chat.",
+      "description": "tb_live_ key from https://taskbullet.com/dashboard/settings/api-keys. Shown once. Enter it here. Do not paste it into chat.",
       "required": true,
+      "sensitive": true
+    },
+    "TASKBULLET_HTTP_TOKEN": {
+      "type": "string",
+      "title": "Local HTTP token",
+      "description": "Only for a non-loopback HTTP bind. Leave blank for the default stdio server. Not the TaskBullet API key.",
       "sensitive": true
     }
   }
