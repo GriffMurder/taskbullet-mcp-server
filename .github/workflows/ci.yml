@@ -47,6 +47,10 @@ jobs:
           if (pkg.version !== server.version || pkg.version !== server.packages?.[0]?.version) {
             throw new Error("package.json version, server.json version, and npm package version must match");
           }
+          const apiKey = server.packages?.[0]?.environmentVariables?.find((item) => item.name === "TASKBULLET_API_KEY");
+          if (!apiKey?.isRequired || apiKey.isSecret !== true) {
+            throw new Error("TASKBULLET_API_KEY must be a required secret");
+          }
           if (pkg.homepage !== "https://taskbullet.com" || server.websiteUrl !== "https://taskbullet.com") {
             throw new Error("homepage and websiteUrl must be https://taskbullet.com");
           }

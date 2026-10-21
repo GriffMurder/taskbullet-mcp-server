@@ -1,7 +1,7 @@
 [
   {
     "name": "cancel_call",
-    "description": "Cancel a call before the first dial and release the hold. After dialing, the current attempt finishes.",
+    "description": "Cancel a call. Status stays cancel_pending until ops confirms. A confirm before any dial refunds the hold and the status becomes cancelled. If the dial already started, the error is cancel_too_late and the call bills normally. A dial after a confirmed cancel is a full refund and the VA is unpaid.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -166,7 +166,7 @@
   },
   {
     "name": "get_transcript",
-    "description": "Read transcript.txt for one call. A cancelled call returns call_cancelled. An empty transcript returns transcript_not_ready.",
+    "description": "Read the VA wrap-up summary for one call. This is not a recording. Once the call is wrap_up or completed, the result is that summary plus any question answers, with source wrap_up_summary and recorded false. Before a wrap-up summary exists, the result is transcript_not_ready. A call that ended without a dial (system failure or refund) is \"no transcript: call not placed\". A cancel after the dial started is call_cancelled. A recorded transcript may be a separate paid feature later and is not returned.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -204,7 +204,7 @@
   },
   {
     "name": "place_call",
-    "description": "Place one human phone call. The hold is the full call: the tier minimum once, or max_minutes times the per-minute rate, whichever is higher. Default max_minutes is 5, so a tier 1 US or Canada call holds $5. Raise max_minutes on that call to hold more. record_call must be false or omitted. Only US and CA are live. A question is {\"id\",\"ask\",\"type\"?}: id up to 80 characters, ask up to 1000 characters, at most 20 questions. goal is at most 4000 characters. Idempotency key is required. Poll get_call, or pass callback_url. validate_call checks the body and places no hold.",
+    "description": "Place one human phone call. The hold is the full call: the tier minimum for the first minute, then the per-minute rate for each additional minute. Default max_minutes is 5, so a tier 1 US or Canada call holds $6.50. Raise max_minutes on that call to hold more. record_call must be false or omitted. Only US and CA are live. A question is {\"id\",\"ask\",\"type\"?}: id up to 80 characters, ask up to 1000 characters, at most 20 questions. goal is at most 4000 characters. Idempotency key is required. Poll get_call, or pass callback_url. validate_call checks the body and places no hold.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -455,7 +455,7 @@
   },
   {
     "name": "validate_call",
-    "description": "Check a phone-call body without creating a call or placing a hold. Same fields as place_call, without idempotencyKey. A ready body includes hold_cents for the full call (tier 1 default $5 at 5 minutes) and whether recipient_timezone was inferred.",
+    "description": "Check a phone-call body without creating a call or placing a hold. Same fields as place_call, without idempotencyKey. A ready body includes hold_cents for the full call (tier 1 default $6.50 at 5 minutes) and whether recipient_timezone was inferred. valid stays true when spendable balance is below the hold. warnings then includes insufficient_balance with needed_cents and addFundsUrl.",
     "inputSchema": {
       "type": "object",
       "properties": {

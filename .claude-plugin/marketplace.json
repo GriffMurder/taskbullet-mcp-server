@@ -1,0 +1,15 @@
+{
+  "name": "taskbullet",
+  "description": "TaskBullet phone calls and human task handoff.",
+  "owner": {
+    "name": "TaskBullet",
+    "email": "hello@taskbullet.com"
+  },
+  "plugins": [
+    {
+      "name": "taskbullet",
+      "source": "./plugins/taskbullet",
+      "description": "Place a real US or Canada phone call, or hand a task to a TaskBullet virtual assistant."
+    }
+  ]
+}

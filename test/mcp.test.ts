@@ -143,6 +143,8 @@ test("server instructions, version, and tool annotations match the spec", async 
       assert.ok(priority?.enum?.includes("urgent"));
       assert.equal(priority?.default, "normal");
       assert.match(byName.place_call?.description ?? "", /Default max_minutes is 5/);
+      assert.match(byName.place_call?.description ?? "", /\$6\.50/);
+      assert.equal((byName.place_call?.description ?? "").includes("$5"), false);
       assert.match(byName.place_call?.description ?? "", /Only US and CA are live/);
       assert.match(byName.place_call?.description ?? "", /record_call must be false or omitted/);
       assert.equal((byName.place_call?.description ?? "").toLowerCase().includes("this call may be recorded"), false);

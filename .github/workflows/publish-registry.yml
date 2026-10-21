@@ -6,6 +6,8 @@
 # Registry auth is GitHub Actions OIDC (id-token: write). No MCP token secret.
 # The registry namespace must stay io.github.GriffMurder/* because OIDC permissions
 # use the repository_owner claim with its exact GitHub casing.
+# com.taskbullet/mcp needs DNS or HTTP domain login and cannot use this job.
+# See PUBLISHING.md. 0.2.1 keeps io.github.GriffMurder/taskbullet so the live listing updates.
 
 name: Publish server.json to MCP Registry
 
