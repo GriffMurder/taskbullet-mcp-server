@@ -10,7 +10,7 @@ const KEY = "tb_live_supersecret_value";
 function testEnv(extra: Record<string, string | undefined> = {}): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env };
   for (const name of Object.keys(env)) {
-    if (name.startsWith("TASKBULLET_")) delete env[name];
+    if (name.startsWith("TASKBULLET_") || name.startsWith("CLAUDE_PLUGIN_OPTION_")) delete env[name];
   }
   for (const [name, value] of Object.entries(extra)) {
     if (value === undefined) delete env[name];
@@ -19,9 +19,13 @@ function testEnv(extra: Record<string, string | undefined> = {}): NodeJS.Process
   return env;
 }
 
-function runCli(args: string[], env: NodeJS.ProcessEnv): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function runEntry(
+  entry: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--import", "tsx", join(root, "src/index.ts"), ...args], {
+    const child = spawn(process.execPath, ["--import", "tsx", join(root, entry), ...args], {
       cwd: root,
       env,
     });
@@ -49,6 +53,10 @@ function runCli(args: string[], env: NodeJS.ProcessEnv): Promise<{ code: number 
   });
 }
 
+function runCli(args: string[], env: NodeJS.ProcessEnv) {
+  return runEntry("src/index.ts", args, env);
+}
+
 test("help works without an API key and does not require a secret", async () => {
   const result = await runCli(["--help"], testEnv());
   assert.equal(result.code, 0);
@@ -61,6 +69,8 @@ test("missing API key exits with the dashboard hint and no secret", async () => 
   const result = await runCli([], testEnv());
   assert.equal(result.code, 1);
   assert.match(result.stderr, /Missing TASKBULLET_API_KEY/);
+  assert.match(result.stderr, /userConfig prompt/);
+  assert.match(result.stderr, /npm\/Cursor/);
   assert.match(result.stderr, /dashboard\/settings\/api-keys/);
   assert.equal(result.stdout.includes(KEY), false);
 });
@@ -71,6 +81,23 @@ test("stdio startup logs readiness and never the API key", async () => {
   assert.equal(result.stderr.includes(KEY), false);
   assert.equal(result.stdout.includes(KEY), false);
   assert.equal(result.stdout.includes("{"), false);
+});
+
+test("plugin entry reads only the userConfig option and ignores the CLI variable", async () => {
+  const ignored = await runEntry("src/run.ts", [], testEnv({ TASKBULLET_API_KEY: KEY }));
+  assert.equal(ignored.code, 1);
+  assert.match(ignored.stderr, /Missing TASKBULLET_API_KEY/);
+  assert.match(ignored.stderr, /userConfig prompt/);
+  assert.equal(ignored.stderr.includes(KEY), false);
+
+  const accepted = await runEntry(
+    "src/run.ts",
+    [],
+    testEnv({ CLAUDE_PLUGIN_OPTION_TASKBULLET_API_KEY: KEY }),
+  );
+  assert.match(accepted.stderr, /Ready\. Listening on stdio\./);
+  assert.equal(accepted.stderr.includes(KEY), false);
+  assert.equal(accepted.stdout.includes(KEY), false);
 });
 
 test("non-loopback HTTP refuses to start and does not log the key", async () => {

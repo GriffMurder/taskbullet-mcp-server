@@ -1,12 +1,11 @@
-#!/usr/bin/env node
 /**
- * TaskBullet MCP server.
+ * TaskBullet MCP server entry for the Claude plugin.
  *
- *   export TASKBULLET_API_KEY="tb_live_..."
- *   npx @taskbullet/mcp-server            # stdio (default)
- *   npx @taskbullet/mcp-server --http     # streamable HTTP on 127.0.0.1:3000/mcp
- *
- * The API key is read from the environment and is never written to logs or tool results.
+ * The API key and the local HTTP token come only from the plugin userConfig
+ * values. `.mcp.json` copies those into
+ * CLAUDE_PLUGIN_OPTION_TASKBULLET_API_KEY and
+ * CLAUDE_PLUGIN_OPTION_TASKBULLET_HTTP_TOKEN. This file does not read a
+ * credential file or any other variable.
  */
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
@@ -16,6 +15,11 @@ import { redact } from "./client.js";
 import { assertHttpBindAllowed, parsePort, startHttpServer } from "./http.js";
 import { createTaskbulletServer } from "./server.js";
 import { SERVER_VERSION } from "./version.js";
+let activeApiKey = "";
+let activeHttpToken = "";
+export function fatalSecrets() {
+    return [activeApiKey, activeHttpToken].filter(Boolean);
+}
 export function parseCli(argv) {
     const cli = { help: false, http: false };
     for (let i = 0; i < argv.length; i += 1) {
@@ -44,9 +48,17 @@ export function parseCli(argv) {
     }
     return cli;
 }
-function envValue(name) {
-    const value = process.env[name]?.trim();
-    return value ? value : undefined;
+function trimmed(value) {
+    const next = value?.trim();
+    return next ? next : undefined;
+}
+/** userConfig TASKBULLET_API_KEY, injected by .mcp.json. No other source. */
+function pluginApiKey() {
+    return trimmed(process.env.CLAUDE_PLUGIN_OPTION_TASKBULLET_API_KEY);
+}
+/** userConfig TASKBULLET_HTTP_TOKEN, injected by .mcp.json. No other source. */
+function pluginHttpToken() {
+    return trimmed(process.env.CLAUDE_PLUGIN_OPTION_TASKBULLET_HTTP_TOKEN);
 }
 function helpText() {
     return `@taskbullet/mcp-server ${SERVER_VERSION}
@@ -57,38 +69,43 @@ Usage:
 
 Options:
   --http              Serve streamable HTTP instead of stdio
-  --host <addr>       Bind address (default 127.0.0.1). Non-loopback requires TASKBULLET_HTTP_TOKEN
+  --host <addr>       Bind address (default 127.0.0.1). Non-loopback requires the local HTTP token
   --port <number>     Port (default 3000)
   --help              Show this help
 
+The Claude plugin passes userConfig into CLAUDE_PLUGIN_OPTION_TASKBULLET_API_KEY
+and CLAUDE_PLUGIN_OPTION_TASKBULLET_HTTP_TOKEN. The npm bin copies a blank
+option from TASKBULLET_API_KEY and TASKBULLET_HTTP_TOKEN before start.
+
 Environment:
-  TASKBULLET_API_KEY                 Required tb_live_ key. Never logged.
+  TASKBULLET_API_KEY                 npm and Cursor only. Never logged.
   TASKBULLET_API_BASE                Default https://taskbullet.com/api/v1
   TASKBULLET_SOURCE_AGENT            Audit label. Default mcp-client
   TASKBULLET_TRANSPORT               Set to http to select streamable HTTP
   TASKBULLET_HTTP_HOST               Default 127.0.0.1
   TASKBULLET_HTTP_PORT               Default 3000
-  TASKBULLET_HTTP_TOKEN              Required when the bind address is not loopback
+  TASKBULLET_HTTP_TOKEN              npm and Cursor only, when the bind address is not loopback
   TASKBULLET_HTTP_ALLOWED_ORIGINS    Extra browser Origins, comma-separated
 `;
 }
 export async function main(argv = process.argv.slice(2)) {
     const cli = parseCli(argv);
-    const http = cli.http || envValue("TASKBULLET_TRANSPORT") === "http";
+    const http = cli.http || trimmed(process.env.TASKBULLET_TRANSPORT) === "http";
     if (cli.help) {
         console.log(helpText());
         return;
     }
-    const apiKey = envValue("TASKBULLET_API_KEY");
+    const apiKey = pluginApiKey();
     if (!apiKey) {
-        console.error("[taskbullet-mcp-server] Missing TASKBULLET_API_KEY environment variable.\n" +
+        console.error("[taskbullet-mcp-server] Missing TASKBULLET_API_KEY. Set it in the Claude plugin's userConfig prompt, or in the environment for npm/Cursor.\n" +
             "Generate one at https://taskbullet.com/dashboard/settings/api-keys");
         process.exit(1);
     }
+    activeApiKey = apiKey;
     const deps = {
         apiKey,
-        apiBase: envValue("TASKBULLET_API_BASE") ?? "https://taskbullet.com/api/v1",
-        sourceAgent: envValue("TASKBULLET_SOURCE_AGENT") ?? "mcp-client",
+        apiBase: trimmed(process.env.TASKBULLET_API_BASE) ?? "https://taskbullet.com/api/v1",
+        sourceAgent: trimmed(process.env.TASKBULLET_SOURCE_AGENT) ?? "mcp-client",
     };
     if (!http) {
         const server = createTaskbulletServer(deps);
@@ -96,11 +113,12 @@ export async function main(argv = process.argv.slice(2)) {
         console.error("[taskbullet-mcp-server] Ready. Listening on stdio.");
         return;
     }
-    const host = cli.host ?? envValue("TASKBULLET_HTTP_HOST") ?? "127.0.0.1";
-    const port = parsePort(cli.port ?? envValue("TASKBULLET_HTTP_PORT"), 3000);
-    const token = envValue("TASKBULLET_HTTP_TOKEN");
+    const host = cli.host ?? trimmed(process.env.TASKBULLET_HTTP_HOST) ?? "127.0.0.1";
+    const port = parsePort(cli.port ?? trimmed(process.env.TASKBULLET_HTTP_PORT), 3000);
+    const token = pluginHttpToken();
+    activeHttpToken = token ?? "";
     assertHttpBindAllowed(host, token);
-    const allowedOrigins = envValue("TASKBULLET_HTTP_ALLOWED_ORIGINS")
+    const allowedOrigins = trimmed(process.env.TASKBULLET_HTTP_ALLOWED_ORIGINS)
         ?.split(",")
         .map((item) => item.trim())
         .filter(Boolean);
@@ -121,7 +139,7 @@ function invokedDirectly() {
 if (invokedDirectly()) {
     main().catch((err) => {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[taskbullet-mcp-server] Fatal: ${redact(message, [process.env.TASKBULLET_API_KEY ?? ""])}`);
+        console.error(`[taskbullet-mcp-server] Fatal: ${redact(message, fatalSecrets())}`);
         process.exit(1);
     });
 }

@@ -4,8 +4,8 @@
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.js"],
       "env": {
-        "TASKBULLET_API_KEY": "${user_config.TASKBULLET_API_KEY}",
-        "TASKBULLET_HTTP_TOKEN": "${user_config.TASKBULLET_HTTP_TOKEN}"
+        "CLAUDE_PLUGIN_OPTION_TASKBULLET_API_KEY": "${user_config.TASKBULLET_API_KEY}",
+        "CLAUDE_PLUGIN_OPTION_TASKBULLET_HTTP_TOKEN": "${user_config.TASKBULLET_HTTP_TOKEN}"
       }
     }
   }

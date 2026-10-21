@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- The Claude Code plugin runs a vendored copy of the server with `node` and asks for `TASKBULLET_API_KEY` in the plugin prompt. Cursor still launches the npm package with `npx`.
+- The Claude Code plugin starts the vendored server with `node` and reads the API key and local HTTP token only from the plugin prompt. Cursor still launches the npm package with `npx`.
 - The server reads `package.json` from beside the file, then from the parent directory.
 
 ## 0.2.1
