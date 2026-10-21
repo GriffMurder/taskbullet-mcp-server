@@ -38,7 +38,7 @@ jobs:
           const server = JSON.parse(readFileSync("server.json", "utf8"));
           const site = JSON.parse(readFileSync("server.site.json", "utf8"));
 
-          if (pkg.mcpName !== "io.github.GriffMurder/taskbullet") {
+          if (pkg.mcpName !== "io.github.GriffMurder/taskbullet-mcp-server") {
             throw new Error(`unexpected mcpName: ${pkg.mcpName}`);
           }
           if (pkg.mcpName !== server.name) {
@@ -46,6 +46,10 @@ jobs:
           }
           if (pkg.version !== server.version || pkg.version !== server.packages?.[0]?.version) {
             throw new Error("package.json version, server.json version, and npm package version must match");
+          }
+          const apiKey = server.packages?.[0]?.environmentVariables?.find((item) => item.name === "TASKBULLET_API_KEY");
+          if (!apiKey?.isRequired || apiKey.isSecret !== true) {
+            throw new Error("TASKBULLET_API_KEY must be a required secret");
           }
           if (pkg.homepage !== "https://taskbullet.com" || server.websiteUrl !== "https://taskbullet.com") {
             throw new Error("homepage and websiteUrl must be https://taskbullet.com");

@@ -1,13 +1,39 @@
-version: 1
-start:
-  command: npx -y @taskbullet/mcp-server
-  env:
-    - name: TASKBULLET_API_KEY
-      description: Your TaskBullet Agent API key (begins with tb_live_). Generate at https://taskbullet.com/dashboard/settings/api-keys
-      required: true
-    - name: TASKBULLET_API_BASE
-      description: Override the API base URL (defaults to https://taskbullet.com/api/v1).
-      required: false
-    - name: TASKBULLET_SOURCE_AGENT
-      description: Audit label for which agent client is calling.
-      required: false
+# Stdio launch config for installers that still read smithery.yaml.
+# Smithery's current publisher does not. List the server at https://smithery.ai/new
+# with a public HTTPS streamable HTTP URL, or publish an MCPB bundle.
+# See PUBLISHING.md. The hosted agent URL uses an x-api-key header, not OAuth.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - taskbulletApiKey
+    properties:
+      taskbulletApiKey:
+        type: string
+        title: TaskBullet API key
+        description: tb_live_ key from https://taskbullet.com/dashboard/settings/api-keys. Shown once.
+      taskbulletApiBase:
+        type: string
+        title: API base URL
+        description: Override. Defaults to https://taskbullet.com/api/v1.
+        default: https://taskbullet.com/api/v1
+      taskbulletSourceAgent:
+        type: string
+        title: Source agent
+        description: Audit label stored on each brief. Defaults to mcp-client.
+        default: mcp-client
+  commandFunction: |-
+    (config) => ({
+      command: 'npx',
+      args: ['-y', '@taskbullet/mcp-server@0.2.1'],
+      env: {
+        TASKBULLET_API_KEY: config.taskbulletApiKey,
+        ...(config.taskbulletApiBase ? { TASKBULLET_API_BASE: config.taskbulletApiBase } : {}),
+        ...(config.taskbulletSourceAgent ? { TASKBULLET_SOURCE_AGENT: config.taskbulletSourceAgent } : {})
+      }
+    })
+  exampleConfig:
+    taskbulletApiKey: tb_live_your_key_here
+    taskbulletApiBase: https://taskbullet.com/api/v1
+    taskbulletSourceAgent: smithery

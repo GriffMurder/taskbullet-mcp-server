@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "taskbullet": {
+      "command": "npx",
+      "args": ["-y", "@taskbullet/mcp-server"],
+      "env": {
+        "TASKBULLET_API_KEY": "${TASKBULLET_API_KEY}"
+      }
+    }
+  }
+}

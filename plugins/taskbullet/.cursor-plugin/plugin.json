@@ -1,0 +1,26 @@
+{
+  "name": "taskbullet",
+  "displayName": "TaskBullet",
+  "version": "0.2.1",
+  "description": "Place a real US or Canada phone call, or hand work the agent cannot finish to a TaskBullet virtual assistant.",
+  "author": {
+    "name": "TaskBullet",
+    "email": "hello@taskbullet.com"
+  },
+  "homepage": "https://taskbullet.com",
+  "repository": "https://github.com/GriffMurder/taskbullet-mcp-server",
+  "license": "MIT",
+  "keywords": ["phone", "calls", "taskbullet", "human-in-the-loop", "mcp"],
+  "rules": ["rules/delegate-call-or-task.mdc"],
+  "variables": {
+    "type": "object",
+    "required": ["TASKBULLET_API_KEY"],
+    "properties": {
+      "TASKBULLET_API_KEY": {
+        "type": "string",
+        "title": "TaskBullet API key",
+        "description": "tb_live_ key from https://taskbullet.com/dashboard/settings/api-keys. Shown once. Never paste it into chat."
+      }
+    }
+  }
+}

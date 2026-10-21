@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.GriffMurder/taskbullet",
+  "name": "io.github.GriffMurder/taskbullet-mcp-server",
   "title": "TaskBullet",
-  "description": "Delegate tasks and US/CA phone calls an AI agent cannot finish to a human VA.",
+  "description": "Place US/CA phone calls and delegate tasks an AI agent cannot finish.",
   "repository": {
     "url": "https://github.com/GriffMurder/taskbullet-mcp-server",
     "source": "github"
@@ -17,35 +17,73 @@
     {
       "src": "https://taskbullet.com/icons/icon-64x64.png",
       "mimeType": "image/png",
-    "sizes": ["64x64"]
-  }
+      "sizes": ["64x64"]
+    }
   ],
-  "version": "0.2.0",
+  "version": "0.2.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@taskbullet/mcp-server",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
           "name": "TASKBULLET_API_KEY",
-          "description": "TaskBullet API key (tb_live_...)",
+          "description": "TaskBullet API key (tb_live_...). Create it at https://taskbullet.com/dashboard/settings/api-keys. Shown once.",
           "isRequired": true,
+          "format": "string",
           "isSecret": true
         },
         {
           "name": "TASKBULLET_API_BASE",
           "description": "Override the Agent API base URL. Defaults to https://taskbullet.com/api/v1.",
           "isRequired": false,
+          "format": "string",
           "isSecret": false
         },
         {
           "name": "TASKBULLET_SOURCE_AGENT",
           "description": "Audit label stored with each delegated task. Defaults to mcp-client.",
           "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "TASKBULLET_TRANSPORT",
+          "description": "Set to http to serve streamable HTTP. Default is stdio.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "TASKBULLET_HTTP_HOST",
+          "description": "HTTP bind address. Default 127.0.0.1. Any other address requires TASKBULLET_HTTP_TOKEN.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "TASKBULLET_HTTP_PORT",
+          "description": "HTTP port. Default 3000.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "TASKBULLET_HTTP_TOKEN",
+          "description": "Bearer token for non-loopback HTTP. Not the TaskBullet API key.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "TASKBULLET_HTTP_ALLOWED_ORIGINS",
+          "description": "Extra browser Origin values for HTTP mode, comma-separated.",
+          "isRequired": false,
+          "format": "string",
           "isSecret": false
         }
       ]
@@ -58,7 +96,7 @@
       "headers": [
         {
           "name": "x-api-key",
-          "description": "TaskBullet API key (tb_live_...)",
+          "description": "TaskBullet API key (tb_live_...).",
           "isRequired": true,
           "isSecret": true
         }
