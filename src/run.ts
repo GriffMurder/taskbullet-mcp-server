@@ -25,9 +25,10 @@ type Cli = {
 };
 
 let activeApiKey = "";
+let activeHttpToken = "";
 
 export function fatalSecrets(): string[] {
-  return activeApiKey ? [activeApiKey] : [];
+  return [activeApiKey, activeHttpToken].filter(Boolean);
 }
 
 export function parseCli(argv: readonly string[]): Cli {
@@ -77,7 +78,7 @@ Usage:
 
 Options:
   --http              Serve streamable HTTP instead of stdio
-  --host <addr>       Bind address (default 127.0.0.1). Non-loopback requires TASKBULLET_HTTP_TOKEN
+  --host <addr>       Bind address (default 127.0.0.1). Non-loopback requires the local HTTP token
   --port <number>     Port (default 3000)
   --help              Show this help
 
@@ -108,7 +109,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   const apiKey = pluginApiKey();
   if (!apiKey) {
     console.error(
-      "[taskbullet-mcp-server] Missing TASKBULLET_API_KEY environment variable.\n" +
+      "[taskbullet-mcp-server] Missing TASKBULLET_API_KEY. Set it in the Claude plugin's userConfig prompt, or in the environment for npm/Cursor.\n" +
         "Generate one at https://taskbullet.com/dashboard/settings/api-keys",
     );
     process.exit(1);
@@ -131,6 +132,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   const host = cli.host ?? trimmed(process.env.TASKBULLET_HTTP_HOST) ?? "127.0.0.1";
   const port = parsePort(cli.port ?? trimmed(process.env.TASKBULLET_HTTP_PORT), 3000);
   const token = pluginHttpToken();
+  activeHttpToken = token ?? "";
   assertHttpBindAllowed(host, token);
   const allowedOrigins = trimmed(process.env.TASKBULLET_HTTP_ALLOWED_ORIGINS)
     ?.split(",")

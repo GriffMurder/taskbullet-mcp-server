@@ -221,19 +221,19 @@ There is no server-initiated SSE stream. `GET` returns 405. Responses are JSON. 
 
 Cursor: `plugins/taskbullet` bundles this MCP server, `rules/delegate-call-or-task.mdc`, and `skills/place-call-or-delegate/SKILL.md`. Those tell the agent when to use `place_call` and when to use `delegate_task`. The repo marketplace is `.cursor-plugin/marketplace.json`. Submission to the Cursor Marketplace is still manual at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish).
 
-Claude Code: `.claude-plugin/marketplace.json` lists the same plugin. Users add it with `/plugin marketplace add GriffMurder/taskbullet-mcp-server`. Claude Code loads the skill. It does not load the Cursor rule. Claude starts the plugin with `bin/start.sh`. The prompt supplies the API key and the local HTTP token, and the vendored server reads only those values. Cursor keeps using `npx`.
+Claude Code: `.claude-plugin/marketplace.json` lists the same plugin. Users add it with `/plugin marketplace add GriffMurder/taskbullet-mcp-server`. Claude Code loads the skill. It does not load the Cursor rule. Claude starts the vendored server with `node` and `${CLAUDE_PLUGIN_ROOT}/server/index.js`. The prompt supplies the API key and the local HTTP token, and the vendored server reads only those values. Cursor keeps using `npx`.
 
 ## Environment
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
-| `TASKBULLET_API_KEY` | yes | — | `tb_live_…` key. Read from the environment. Never logged or copied into tool results. |
+| `TASKBULLET_API_KEY` | yes | — | `tb_live_…` key. npm and Cursor read it from the environment. The Claude plugin reads the prompt value only. Never logged or copied into tool results. |
 | `TASKBULLET_API_BASE` | no | `https://taskbullet.com/api/v1` | Override for staging |
 | `TASKBULLET_SOURCE_AGENT` | no | `mcp-client` | Audit label stored on each brief |
 | `TASKBULLET_TRANSPORT` | no | stdio | Set to `http` to serve streamable HTTP |
 | `TASKBULLET_HTTP_HOST` | no | `127.0.0.1` | Bind address. Non-loopback requires a token |
 | `TASKBULLET_HTTP_PORT` | no | `3000` | HTTP port |
-| `TASKBULLET_HTTP_TOKEN` | when exposed | — | Local HTTP auth. Not the TaskBullet API key |
+| `TASKBULLET_HTTP_TOKEN` | when exposed | — | Local HTTP auth for npm and Cursor. The Claude plugin reads the prompt value only. Not the TaskBullet API key |
 | `TASKBULLET_HTTP_ALLOWED_ORIGINS` | no | loopback origins | Extra browser `Origin` values, comma-separated |
 
 ## Completion

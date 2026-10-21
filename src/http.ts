@@ -22,7 +22,7 @@ export function isLoopbackHost(host: string): boolean {
 export function assertHttpBindAllowed(host: string, token: string | undefined): void {
   if (!isLoopbackHost(host) && !token) {
     throw new Error(
-      "Refusing to listen on a non-loopback address without TASKBULLET_HTTP_TOKEN. The API key stays in this process and must not be exposed on the network.",
+      "Refusing to listen on a non-loopback address without TASKBULLET_HTTP_TOKEN. Set it in the Claude plugin's userConfig prompt, or in the environment for npm/Cursor. The API key stays in this process and must not be exposed on the network.",
     );
   }
 }

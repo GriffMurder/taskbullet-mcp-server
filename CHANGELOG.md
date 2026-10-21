@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- The Claude Code plugin starts from `bin/start.sh` and reads the API key and local HTTP token only from the plugin prompt. Cursor still launches the npm package with `npx`.
+- The Claude Code plugin starts the vendored server with `node` and reads the API key and local HTTP token only from the plugin prompt. Cursor still launches the npm package with `npx`.
 - The server reads `package.json` from beside the file, then from the parent directory.
 
 ## 0.2.1

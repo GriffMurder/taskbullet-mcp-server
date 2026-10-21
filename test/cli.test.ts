@@ -69,6 +69,8 @@ test("missing API key exits with the dashboard hint and no secret", async () => 
   const result = await runCli([], testEnv());
   assert.equal(result.code, 1);
   assert.match(result.stderr, /Missing TASKBULLET_API_KEY/);
+  assert.match(result.stderr, /userConfig prompt/);
+  assert.match(result.stderr, /npm\/Cursor/);
   assert.match(result.stderr, /dashboard\/settings\/api-keys/);
   assert.equal(result.stdout.includes(KEY), false);
 });
@@ -85,6 +87,7 @@ test("plugin entry reads only the userConfig option and ignores the CLI variable
   const ignored = await runEntry("src/run.ts", [], testEnv({ TASKBULLET_API_KEY: KEY }));
   assert.equal(ignored.code, 1);
   assert.match(ignored.stderr, /Missing TASKBULLET_API_KEY/);
+  assert.match(ignored.stderr, /userConfig prompt/);
   assert.equal(ignored.stderr.includes(KEY), false);
 
   const accepted = await runEntry(

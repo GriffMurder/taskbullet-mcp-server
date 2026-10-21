@@ -87,10 +87,12 @@ test("adoption files point at this package version", () => {
   assert.equal(skill.includes("holds $5"), false);
 
   const claudeMcp = readFileSync("plugins/taskbullet/.mcp.json", "utf8");
-  assert.match(claudeMcp, /\$\{CLAUDE_PLUGIN_ROOT\}\/bin\/start\.sh/);
+  assert.match(claudeMcp, /"command": "node"/);
+  assert.match(claudeMcp, /\$\{CLAUDE_PLUGIN_ROOT\}\/server\/index\.js/);
   assert.match(claudeMcp, /\$\{user_config\.TASKBULLET_API_KEY\}/);
   assert.equal(claudeMcp.includes("npx"), false);
-  assert.equal(claudeMcp.includes("server/index.js"), false);
+  assert.equal(claudeMcp.includes("start.sh"), false);
+  assert.equal(claudeMcp.includes("/bin/"), false);
   const smithery = readFileSync("smithery.yaml", "utf8");
   assert.match(smithery, new RegExp(`@taskbullet/mcp-server@${pkg.version}`));
 
