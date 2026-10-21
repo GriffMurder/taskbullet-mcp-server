@@ -56,6 +56,7 @@ test("formatApiError tells the model what to do next", () => {
 
   const callsWallet = formatApiError(402, { error: "payment_required", addFundsUrl: "https://taskbullet.com/api/v1/billing/add-funds" }, null);
   assert.match(callsWallet, /5 minutes/);
+  assert.match(callsWallet, /\$6\.50/);
   assert.match(callsWallet, /no trial/);
   assert.match(callsWallet, /add-funds/);
 

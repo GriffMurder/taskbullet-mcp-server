@@ -165,7 +165,7 @@ export function formatApiError(status: number, body: unknown, retryAfterSeconds:
     case 402: {
       const addFundsUrl = str(body, "addFundsUrl");
       if (code === "payment_required" || (addFundsUrl && hours === undefined)) {
-        return `The calls wallet cannot cover the hold (HTTP 402). Add funds at ${addFundsUrl ?? "POST /api/v1/billing/add-funds"}. This is pay-as-you-go and there is no trial. A tier 1 US or Canada call holds $5 at the default 5 minutes.`;
+        return `The calls wallet cannot cover the hold (HTTP 402). Add funds at ${addFundsUrl ?? "POST /api/v1/billing/add-funds"}. This is pay-as-you-go and there is no trial. A tier 1 US or Canada call holds $6.50 at the default 5 minutes.`;
       }
       return `No spendable hours (HTTP 402). A live Ops read is not above zero${hours === undefined ? "" : ` (hoursRemaining=${hours})`}. Buy hours at ${addHoursUrl}. Do not restart a free trial.`;
     }

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { SERVER_VERSION } from "../src/version.js";
 
-const MCP_NAME = "io.github.GriffMurder/taskbullet-mcp-server";
+const MCP_NAME = "io.github.GriffMurder/taskbullet";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8")) as {
   version: string;
@@ -68,14 +68,23 @@ test("registry metadata stays aligned with the npm package", () => {
 
 test("adoption files point at this package version", () => {
   const readme = readFileSync("README.md", "utf8");
-  assert.match(readme, /^# Your AI agent can place a real phone call\.\n/);
+  assert.match(readme, /^# Your AI agent can place a real phone call\.\r?\n/);
   assert.match(readme, /\$2\.50/);
+  assert.match(readme, /\$6\.50/);
+  assert.equal(readme.includes("holds $5"), false);
+  assert.match(readme, /io\.github\.GriffMurder\/taskbullet(?!-)/);
   assert.match(readme, /cursor:\/\/anysphere\.cursor-deeplink\/mcp\/install\?name=taskbullet&config=/);
   assert.match(readme, /vscode:mcp\/install\?/);
   assert.match(readme, /vscode-insiders:mcp\/install\?/);
   assert.match(readme, /claude mcp add taskbullet/);
   assert.match(readme, /com\.taskbullet\/mcp/);
   assert.match(readme, new RegExp(MCP_NAME.replace("/", "\\/")));
+
+  const skill = readFileSync("plugins/taskbullet/skills/place-call-or-delegate/SKILL.md", "utf8");
+  assert.match(skill, /^---\r?\nname: place-call-or-delegate\r?\n/);
+  assert.match(skill, /place_call/);
+  assert.match(skill, /delegate_task/);
+  assert.equal(skill.includes("holds $5"), false);
 
   const claudeMcp = readFileSync("plugins/taskbullet/.mcp.json", "utf8");
   assert.match(claudeMcp, new RegExp(`@taskbullet/mcp-server@${pkg.version}`));

@@ -11,11 +11,11 @@ That name is the reverse-DNS form of `taskbullet.com`. The registry grants it on
 - `dig TXT taskbullet.com` has no `v=MCPv1` TXT record.
 - `https://taskbullet.com/.well-known/mcp-registry-auth` returns 404.
 
-`package.json` `mcpName` and `server.json` `name` therefore use the GitHub fallback, which GitHub auth can publish without a DNS change:
+`package.json` `mcpName` and `server.json` `name` therefore stay on the name GitHub auth already published:
 
-`io.github.GriffMurder/taskbullet-mcp-server`
+`io.github.GriffMurder/taskbullet`
 
-npm `0.2.0` and the live registry entry still use `io.github.GriffMurder/taskbullet` (registry versions `0.1.2` and `0.1.3`). Publishing `0.2.1` creates the new fallback name. It does not move the old listing. The GitHub Actions OIDC job can publish `io.github.GriffMurder/*` only. It cannot publish `com.taskbullet/mcp`.
+Checked on 2026-10-21, that listing's latest version is `0.2.0`. Publishing `0.2.1` updates it. It does not create `io.github.GriffMurder/taskbullet-mcp-server`. The GitHub Actions OIDC job can publish `io.github.GriffMurder/*` only. It cannot publish `com.taskbullet/mcp`. Switch `mcpName` to that name only after the DNS or HTTP proof below exists, in a later version.
 
 ### DNS TXT for `com.taskbullet/mcp`
 
@@ -63,7 +63,7 @@ npm run build
 npm publish --access public
 ```
 
-`prepublishOnly` runs `tsc`. Confirm https://www.npmjs.com/package/@taskbullet/mcp-server shows `0.2.1` and `mcpName` `io.github.GriffMurder/taskbullet-mcp-server` before the registry publish. The registry reads `mcpName` from the public npm tarball and rejects a mismatch.
+`prepublishOnly` runs `tsc`. Confirm https://www.npmjs.com/package/@taskbullet/mcp-server shows `0.2.1` and `mcpName` `io.github.GriffMurder/taskbullet` before the registry publish. The registry reads `mcpName` from the public npm tarball and rejects a mismatch.
 
 Install the publisher:
 
@@ -84,7 +84,7 @@ mcp-publisher publish server.json
 `mcp-publisher publish` with no file publishes `server.json` in the current directory. Search:
 
 ```bash
-curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.GriffMurder/taskbullet-mcp-server"
+curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.GriffMurder/taskbullet"
 ```
 
 The tag workflow `.github/workflows/publish-mcp.yml` runs `npm publish` and then `mcp-publisher login github-oidc` on `v*`. It publishes only when the repository secret `NPM_TOKEN` is set. This environment could not list Actions secrets. If the secret is absent, use the commands above. If it is present:

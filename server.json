@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.GriffMurder/taskbullet-mcp-server",
+  "name": "io.github.GriffMurder/taskbullet",
   "title": "TaskBullet",
   "description": "Place US/CA phone calls and delegate tasks an AI agent cannot finish.",
   "repository": {

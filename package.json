@@ -1,7 +1,7 @@
 {
   "name": "@taskbullet/mcp-server",
   "version": "0.2.1",
-  "mcpName": "io.github.GriffMurder/taskbullet-mcp-server",
+  "mcpName": "io.github.GriffMurder/taskbullet",
   "description": "MCP server for delegating tasks and US/CA phone calls from AI agents (Claude, Cursor, OpenClaw, Grok) to real human virtual assistants. Stdio and streamable HTTP.",
   "keywords": [
     "mcp",

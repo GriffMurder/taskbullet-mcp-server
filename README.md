@@ -9,7 +9,7 @@ A person dials the number. Your agent gets the answers back. The server is [`@ta
 
 $2.50 for the first minute, then $1 per additional minute. The charge comes from the calls wallet, not from prepaid VA hours. US and Canada numbers only. Recording is not available. A system failure that never dials is fully refunded.
 
-`get_balance` shows `balance_cents` (spendable after open holds), `holds_cents`, and `wallet_cents`. The default `max_minutes` is 5. At the rate above, five minutes is $6.50. `validate_call` returns `hold_cents` for the body you are about to send, and it places no hold. The tool text still tells the agent that a tier 1 call at the default 5 minutes holds $5. Use `hold_cents`.
+`get_balance` shows `balance_cents` (spendable after open holds), `holds_cents`, and `wallet_cents`. The default `max_minutes` is 5. At the rate above, five minutes is $6.50. `validate_call` returns `hold_cents` for the body you are about to send, and it places no hold. Use `hold_cents`.
 
 HTTP 402 `payment_required` means the wallet cannot cover the hold. Add funds at `addFundsUrl`. That read does not create a Stripe session. Calls are pay-as-you-go. There is no trial.
 
@@ -127,8 +127,8 @@ Names, arguments, and limits below match the code in `src/server.ts`.
 | `validate_call` | `POST /api/v1/calls/validate` | Checks the body. Creates nothing and places no hold. Returns `hold_cents`. |
 | `get_call` | `GET /api/v1/calls/{id}` | Read-only. Includes `needs_info` or the final result. |
 | `update_call` | `PATCH /api/v1/calls/{id}` | Fills missing fields while the call is `needs_info`. |
-| `cancel_call` | `POST /api/v1/calls/{id}/cancel` | Before the first dial, releases the hold. After dialing, the attempt finishes. |
-| `get_transcript` | `GET /api/v1/calls/{id}/transcript.txt` | Read-only. Empty is `transcript_not_ready`. A cancelled call is `call_cancelled`. |
+| `cancel_call` | `POST /api/v1/calls/{id}/cancel` | Asks ops to cancel. Stays `cancel_pending` until ops confirms. A confirm before any dial refunds the hold. After the dial starts, the error is `cancel_too_late` and the call bills normally. |
+| `get_transcript` | `GET /api/v1/calls/{id}/transcript.txt` | VA wrap-up summary, not a recording. `source` is `wrap_up_summary` and `recorded` is false. Empty is `transcript_not_ready`. No dial is `no transcript: call not placed`. Cancel after the dial started is `call_cancelled`. |
 
 `delegate_task` arguments: `title` (required, max 5000), `description` (max 8000), `priority` (`low` \| `normal` \| `high` \| `urgent`, default `normal`), `dueDate`, `sourceAgent`, `webhookUrl` (https), `maxHours` (default 0.5, max 8), `idempotencyKey` (required). The same value is sent as the `Idempotency-Key` header and is not put in the JSON body. A repeat returns the original task.
 
@@ -140,7 +140,7 @@ Never put passwords, OTP codes, recovery keys, cookies, or API keys in a brief o
 
 Human phone calls use `place_call`, not `delegate_task`. Required fields are `phone`, `business_name`, `purpose` (`info`, `scheduling`, `account_servicing`, or `vendor_ops`), `goal` (max 4000), `questions` (1 to 20 items of `{id, ask, type?}`, `id` max 80, `ask` max 1000), `on_behalf_of`, `deadline` (ISO-8601), `consent_attestation` (`true`), and `idempotencyKey`. `max_attempts` defaults to 3 and maxes at 5. `max_minutes` defaults to 5 and maxes at 60. `language` is `en`, `fil`, `tl`, `war`, or `ceb`.
 
-Only US and Canada numbers can be placed. `record_call` must be false or omitted. True is rejected locally and nothing is sent. The hold is the full call: the tier minimum once, or `max_minutes` times the per-minute rate, whichever is higher. The tool description says a tier 1 call at the default 5 minutes holds $5. The price on this page is $2.50 then $1 per additional minute. `validate_call` is the same body without `idempotencyKey`, and its `hold_cents` is the figure to trust. `place_call` is pay-as-you-go from the calls wallet. Poll `get_call`, or pass an https `callback_url`. A call outside weekday 09:00–17:00 in the recipient's time zone needs `allow_outside_business_hours: true` after the customer confirms. The deadline then needs 60 minutes of clock time.
+Only US and Canada numbers can be placed. `record_call` must be false or omitted. True is rejected locally and nothing is sent. The hold is the full call: the first minute is the tier minimum, then the per-minute rate. A tier 1 call at the default 5 minutes holds $6.50. `validate_call` is the same body without `idempotencyKey`, and its `hold_cents` is the figure to trust. `valid` stays true when the wallet is short. `warnings` then include `insufficient_balance`. `place_call` is pay-as-you-go from the calls wallet. Poll `get_call`, or pass an https `callback_url`. A call outside weekday 09:00–17:00 in the recipient's time zone needs `allow_outside_business_hours: true` after the customer confirms. The deadline then needs 60 minutes of clock time.
 
 `update_call` takes `call_id` plus any of the same body fields. `get_call`, `cancel_call`, and `get_transcript` take `call_id`.
 
@@ -182,7 +182,7 @@ The lobster cannot create the account or mint a key. Tell the human, in order:
 2. Issue `tb_live_…` at https://taskbullet.com/dashboard/settings/api-keys (shown once)
 3. Paste it into the Gateway env `TASKBULLET_API_KEY` and point Agent MCP at `https://taskbullet.com/api/agent-mcp` with header `x-api-key`. Restart. Never put the key in chat.
 
-Install the skill with `openclaw skills install @griffmurder/taskbullet`. Then `get_balance`, confirm spend, and `delegate_task`. No key → the trial URL above. A keyed HTTP 402 is the packages page, not a second trial.
+Install the skill with `openclaw skills install @griffmurder/taskbullet`. A single human phone call is `place_call` on the calls wallet. Other unfinished work is `get_balance`, confirm spend, then `delegate_task`. No key → the trial URL above. A keyed HTTP 402 on hours is the packages page, not a second trial. A keyed HTTP 402 on a call is add funds, not a trial.
 
 A local Gateway can also launch this package over stdio (`npx -y @taskbullet/mcp-server`) with `TASKBULLET_API_KEY` in the environment.
 
@@ -219,9 +219,9 @@ There is no server-initiated SSE stream. `GET` returns 405. Responses are JSON. 
 
 ## Plugins
 
-Cursor: `plugins/taskbullet` bundles this MCP server and `rules/delegate-call-or-task.mdc`, which tells the agent when to use `place_call` and when to use `delegate_task`. The repo marketplace is `.cursor-plugin/marketplace.json`. Submission to the Cursor Marketplace is still manual at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish).
+Cursor: `plugins/taskbullet` bundles this MCP server, `rules/delegate-call-or-task.mdc`, and `skills/place-call-or-delegate/SKILL.md`. Those tell the agent when to use `place_call` and when to use `delegate_task`. The repo marketplace is `.cursor-plugin/marketplace.json`. Submission to the Cursor Marketplace is still manual at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish).
 
-Claude Code: `.claude-plugin/marketplace.json` lists the same plugin. Users add it with `/plugin marketplace add GriffMurder/taskbullet-mcp-server`. The launcher in `plugins/taskbullet/.mcp.json` is pinned to `@taskbullet/mcp-server@0.2.1`.
+Claude Code: `.claude-plugin/marketplace.json` lists the same plugin. Users add it with `/plugin marketplace add GriffMurder/taskbullet-mcp-server`. Claude Code loads the skill. It does not load the Cursor rule. The launcher in `plugins/taskbullet/.mcp.json` is pinned to `@taskbullet/mcp-server@0.2.1`.
 
 ## Environment
 
@@ -255,7 +255,7 @@ Docs: [agent API](https://taskbullet.com/docs/agent-api) · [OpenAPI](https://ta
 
 ## Registry
 
-`mcpName` in this release is `io.github.GriffMurder/taskbullet-mcp-server`. The preferred registry name is `com.taskbullet/mcp`, which needs a DNS TXT record or an HTTP proof on `taskbullet.com`. That proof is not published yet, so this package uses the GitHub fallback. Commands, the TXT record, and the directory submissions are in [PUBLISHING.md](PUBLISHING.md).
+`mcpName` in this release is `io.github.GriffMurder/taskbullet`. That is the live registry listing. Publishing 0.2.1 updates it. The preferred name `com.taskbullet/mcp` needs a DNS TXT record or an HTTP proof on `taskbullet.com`. That proof is not published yet, so this package does not switch names. Commands, the TXT record, and the directory submissions are in [PUBLISHING.md](PUBLISHING.md).
 
 ## License
 

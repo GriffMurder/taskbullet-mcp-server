@@ -6,7 +6,7 @@ The same plugin files a task with a TaskBullet virtual assistant when the agent 
 
 Create a key at https://taskbullet.com/dashboard/settings/api-keys. It is shown once. Put it in the plugin prompt. Do not paste it into chat.
 
-Cursor reads `mcp.json` and `rules/delegate-call-or-task.mdc`. Claude Code reads `.mcp.json` and asks for `taskbullet_api_key`. The Claude launcher is pinned to `@taskbullet/mcp-server@0.2.1`. Publish that npm version before installing the plugin. Phone calls use `place_call`. Other unfinished work uses `delegate_task`.
+Cursor reads `mcp.json`, `rules/delegate-call-or-task.mdc`, and `skills/place-call-or-delegate/SKILL.md`. Claude Code reads `.mcp.json` and the same skill, and asks for `taskbullet_api_key`. It does not load the Cursor rule. The Claude launcher is pinned to `@taskbullet/mcp-server@0.2.1`. Publish that npm version before installing the plugin. Phone calls use `place_call`. Other unfinished work uses `delegate_task`.
 
 Privacy: https://taskbullet.com/legal/privacy
 Docs: https://taskbullet.com/docs/agent-api
