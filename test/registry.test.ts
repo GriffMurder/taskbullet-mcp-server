@@ -35,7 +35,7 @@ const site = JSON.parse(readFileSync("server.site.json", "utf8")) as {
 };
 
 test("registry metadata stays aligned with the npm package", () => {
-  assert.equal(pkg.version, "0.2.1");
+  assert.equal(pkg.version, "0.2.2");
   assert.equal(SERVER_VERSION, pkg.version);
   assert.equal(pkg.mcpName, MCP_NAME);
   assert.equal(pkg.mcpName, server.name);
