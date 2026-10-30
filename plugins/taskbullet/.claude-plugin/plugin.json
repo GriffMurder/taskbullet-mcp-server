@@ -1,7 +1,7 @@
 {
   "name": "taskbullet",
   "displayName": "TaskBullet",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Place a real US or Canada phone call, or hand work the agent cannot finish to a TaskBullet virtual assistant.",
   "author": {
     "name": "TaskBullet",

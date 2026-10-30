@@ -20,12 +20,12 @@
       "sizes": ["64x64"]
     }
   ],
-  "version": "0.2.1",
+  "version": "0.2.2",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@taskbullet/mcp-server",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "transport": {
         "type": "stdio"
       },

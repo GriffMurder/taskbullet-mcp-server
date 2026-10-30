@@ -111,17 +111,44 @@ const jsonOutput = z.object({}).passthrough();
 function safePathId(value) {
     return value.length > 0 && value.length <= 200 && !/[\s/\\]/.test(value) && !value.includes("..");
 }
+/**
+ * Zod 4 replaced `required_error`. Missing values keep that message.
+ * Any other failure stays on Zod's default text.
+ */
+function missingField(message) {
+    return {
+        error: (issue) => (issue.input === undefined ? message : undefined),
+    };
+}
+/**
+ * Zod 3 `.int()` is `Number.isInteger` and publishes `{ type: "integer" }`.
+ * Zod 4 `.int()` is a safe integer and adds min/max bounds to JSON Schema.
+ * Keep the old check, and mark the schema so the published tools stay unchanged.
+ */
+function integerSchema() {
+    const schema = z.number().refine((value) => Number.isInteger(value), "Expected integer, received float");
+    schema._zod.bag.format = "integer";
+    return schema;
+}
+/** Zod 4 emits `items: {}` for `z.array(z.any())`. The published update_call schema omits items. */
+function anyArray() {
+    const schema = z.array(z.any());
+    schema._zod.processJSONSchema = (_ctx, json) => {
+        json.type = "array";
+    };
+    return schema;
+}
 function taskIdField() {
     return z
-        .string({ required_error: "taskId is required" })
+        .string(missingField("taskId is required"))
         .refine((value) => safePathId(value), "taskId is invalid")
         .describe("The taskId returned by delegate_task.");
 }
 function callIdField() {
-    return z.string({ required_error: "call_id is required" }).refine((value) => safePathId(value), "call_id is invalid");
+    return z.string(missingField("call_id is required")).refine((value) => safePathId(value), "call_id is invalid");
 }
 function idempotencyField(description) {
-    return z.string({ required_error: "idempotencyKey is required" }).describe(description);
+    return z.string(missingField("idempotencyKey is required")).describe(description);
 }
 const httpsUrl = z.string().url().refine((value) => {
     try {
@@ -133,7 +160,7 @@ const httpsUrl = z.string().url().refine((value) => {
 }, "webhookUrl must be an https URL");
 const delegateInput = z.object({
     title: z
-        .string({ required_error: "title is required" })
+        .string(missingField("title is required"))
         .max(5000)
         .describe("Concise directive (max 5000 chars)."),
     description: z
@@ -174,7 +201,7 @@ const cancelTaskInput = z.object({
 });
 const reopenInput = z.object({
     taskId: taskIdField(),
-    reason: z.string({ required_error: "reason is required" }).describe("What should happen next. Required. Do not include secrets."),
+    reason: z.string(missingField("reason is required")).describe("What should happen next. Required. Do not include secrets."),
     idempotencyKey: idempotencyField("Same value as the REST Idempotency-Key header. Required."),
 });
 const placeQuestion = z
@@ -193,13 +220,13 @@ const purpose = z.enum(["info", "scheduling", "account_servicing", "vendor_ops"]
 const scriptMode = z.enum(["guided", "verbatim"]);
 const placeInput = z.object({
     phone: z
-        .string({ required_error: "phone is required" })
+        .string(missingField("phone is required"))
         .describe("US or Canada number. 801-414-4664, (801) 414-4664, and +1 801 414 4664 are accepted and stored as E.164."),
     extension: z.string().optional().describe("Optional digits. Passed into the VA instructions. Not billed."),
     language: z.string().optional().describe("en, fil, tl, war, or ceb. Default en."),
-    business_name: z.string({ required_error: "business_name is required" }),
+    business_name: z.string(missingField("business_name is required")),
     purpose,
-    goal: z.string({ required_error: "goal is required" }).max(4000),
+    goal: z.string(missingField("goal is required")).max(4000),
     record_call: z.boolean().optional().describe("False or omit. True is rejected: recording is not available."),
     script_mode: scriptMode.optional(),
     script: z.string().optional(),
@@ -209,10 +236,10 @@ const placeInput = z.object({
         .max(20)
         .describe("One to 20 questions. Each item is {id, ask, type?}."),
     allowed_disclosures: z.string().optional(),
-    on_behalf_of: z.string({ required_error: "on_behalf_of is required" }),
+    on_behalf_of: z.string(missingField("on_behalf_of is required")),
     shareable_contact: z.string().optional(),
     deadline: z
-        .string({ required_error: "deadline is required" })
+        .string(missingField("deadline is required"))
         .describe("ISO-8601. Needs 60 minutes of weekday 09:00–17:00 recipient-local, unless allow_outside_business_hours is true."),
     time_window: z
         .string()
@@ -224,9 +251,9 @@ const placeInput = z.object({
         .describe("IANA zone. Omit it and TaskBullet infers a US or Canada area code. An uninferable number needs this field."),
     retry_preference: z.any().optional(),
     allow_outside_business_hours: z.boolean().optional().describe(OUTSIDE_HOURS),
-    consent_attestation: z.boolean({ required_error: "consent_attestation is required" }).describe("Must be true."),
-    max_attempts: z.number().int().optional().describe("Default 3. Maximum 5."),
-    max_minutes: z.number().int().optional().describe("Default 5. Maximum 60. The hold covers this many minutes."),
+    consent_attestation: z.boolean(missingField("consent_attestation is required")).describe("Must be true."),
+    max_attempts: integerSchema().optional().describe("Default 3. Maximum 5."),
+    max_minutes: integerSchema().optional().describe("Default 5. Maximum 60. The hold covers this many minutes."),
     callback_url: z.string().optional(),
     idempotencyKey: idempotencyField("Same value as the REST Idempotency-Key header."),
 });
@@ -251,8 +278,8 @@ const validateInput = z.object({
     retry_preference: z.any().optional(),
     allow_outside_business_hours: z.boolean().optional(),
     consent_attestation: z.boolean().optional(),
-    max_attempts: z.number().int().optional(),
-    max_minutes: z.number().int().optional(),
+    max_attempts: integerSchema().optional(),
+    max_minutes: integerSchema().optional(),
     callback_url: z.string().optional(),
 });
 const updateInput = z.object({
@@ -267,7 +294,7 @@ const updateInput = z.object({
     script_mode: z.string().optional(),
     script: z.string().optional(),
     instructions: z.string().optional(),
-    questions: z.array(z.any()).optional(),
+    questions: anyArray().optional(),
     allowed_disclosures: z.string().optional(),
     on_behalf_of: z.string().optional(),
     shareable_contact: z.string().optional(),
@@ -277,8 +304,8 @@ const updateInput = z.object({
     retry_preference: z.any().optional(),
     allow_outside_business_hours: z.boolean().optional().describe(OUTSIDE_HOURS),
     consent_attestation: z.boolean().optional(),
-    max_attempts: z.number().int().optional(),
-    max_minutes: z.number().int().optional(),
+    max_attempts: integerSchema().optional(),
+    max_minutes: integerSchema().optional(),
     callback_url: z.string().optional(),
 });
 const callIdInput = z.object({

@@ -76,7 +76,7 @@ test("claude plugin vendors the server and asks for its secrets", () => {
   const rootPkg = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
   assert.equal(serverPkg.version, rootPkg.version);
   assert.equal(serverPkg.dependencies["@modelcontextprotocol/sdk"], "1.32.1");
-  assert.equal(serverPkg.dependencies.zod, "3.25.76");
+  assert.equal(serverPkg.dependencies.zod, "4.6.7");
   assert.equal(serverPkg.dependencies["@modelcontextprotocol/sdk"]?.includes("^"), false);
   assert.equal(serverPkg.dependencies.zod.includes("^"), false);
 

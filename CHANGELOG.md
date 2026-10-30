@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.2.2
 
+- Security update for the npm package and the vendored Claude plugin. Production `npm audit` is clean for both lockfiles. `zod` is 4.6.7. Tool names, descriptions, input schemas, and validation messages are unchanged.
+- Weekly Dependabot checks for npm (root and `plugins/taskbullet/server`) and GitHub Actions.
 - The Claude Code plugin starts the vendored server with `node` and reads the API key and local HTTP token only from the plugin prompt. Cursor still launches the npm package with `npx`.
 - The server reads `package.json` from beside the file, then from the parent directory.
 
